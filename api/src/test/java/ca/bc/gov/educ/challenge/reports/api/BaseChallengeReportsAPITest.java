@@ -29,9 +29,9 @@ public abstract class BaseChallengeReportsAPITest {
 
   public ChallengeReportStatusCodeEntity createCitizenshipCodeEntity() {
     return ChallengeReportStatusCodeEntity.builder()
-            .citizenshipCode("C")
-            .label("Canadian")
-            .description("Canadian Citizenship")
+            .challengeReportStatusCode("PRELIM")
+            .label("Preliminary Stage")
+            .description("Preliminary Stage")
             .displayOrder(1)
             .createUser("ABC")
             .updateUser("ABC")
