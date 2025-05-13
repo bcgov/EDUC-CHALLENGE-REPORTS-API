@@ -7,10 +7,14 @@ import ca.bc.gov.educ.challenge.reports.api.exception.ChallengeReportsAPIRuntime
 import ca.bc.gov.educ.challenge.reports.api.messaging.MessagePublisher;
 import ca.bc.gov.educ.challenge.reports.api.properties.ApplicationProperties;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.Event;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.PaginatedResponse;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.District;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.SchoolTombstone;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.studentapi.v1.Student;
 import ca.bc.gov.educ.challenge.reports.api.util.JsonUtil;
+import ca.bc.gov.educ.challenge.reports.api.util.SearchCriteriaBuilder;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -20,16 +24,19 @@ import lombok.val;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 /**
  * This class is used for REST calls
@@ -148,6 +155,81 @@ public class RestUtils {
       this.populateDistrictMap();
     }
     return Optional.ofNullable(this.districtMap.get(districtID));
+  }
+
+  public List<SdcSchoolCollectionStudent> get1701DataForStudents(String collectionID, List<String> studentPens) throws JsonProcessingException {
+    int maxPensPerBatch = 1500;
+    int pageSize = 1500;
+
+    ExecutorService executor = Executors.newFixedThreadPool(8); // Adjust thread pool size as needed
+    List<CompletableFuture<List<SdcSchoolCollectionStudent>>> futures = new ArrayList<>();
+
+    for (int i = 0; i < studentPens.size(); i += maxPensPerBatch) {
+      int start = i;
+      int end = Math.min(i + maxPensPerBatch, studentPens.size());
+      List<String> batchPens = new ArrayList<>(studentPens.subList(start, end));
+
+      CompletableFuture<List<SdcSchoolCollectionStudent>> future = CompletableFuture.supplyAsync(() -> {
+        try {
+          List<Map<String, Object>> searchCriteriaList = SearchCriteriaBuilder.byCollectionIdAndStudentPens(collectionID, batchPens);
+          return fetchStudentsForBatch(pageSize, searchCriteriaList);
+        } catch (Exception e) {
+          log.error("Batch fetch failed", e);
+          return Collections.emptyList();
+        }
+      }, executor);
+
+      futures.add(future);
+    }
+
+    List<SdcSchoolCollectionStudent> allStudents = futures.stream()
+            .map(CompletableFuture::join)
+            .flatMap(List::stream)
+            .collect(Collectors.toList());
+
+    executor.shutdown();
+    return allStudents;
+  }
+
+  private List<SdcSchoolCollectionStudent> fetchStudentsForBatch(int pageSize, List<Map<String, Object>> searchCriteriaList) throws JsonProcessingException {
+    List<SdcSchoolCollectionStudent> students = new ArrayList<>();
+    String searchJson = objectMapper.writeValueAsString(searchCriteriaList);
+    String encodedSearchJson = URLEncoder.encode(searchJson, StandardCharsets.UTF_8);
+
+    int pageNumber = 0;
+    boolean hasNextPage = true;
+
+    while (hasNextPage) {
+      try {
+        String fullUrl = this.props.getSdcApiURL()
+                + "/sdcSchoolCollectionStudent/paginated-shallow"
+                + "?pageNumber=" + pageNumber
+                + "&pageSize=" + pageSize
+                + "&sort=" // optional: add sort json or keep empty
+                + "&searchCriteriaList=" + encodedSearchJson;
+
+        PaginatedResponse<SdcSchoolCollectionStudent> response = webClient.get()
+                .uri(fullUrl)
+                .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<PaginatedResponse<SdcSchoolCollectionStudent>>() {
+                })
+                .block();
+
+        if (response != null && response.getContent() != null) {
+          students.addAll(response.getContent());
+          hasNextPage = response.getNumber() < response.getTotalPages() - 1;
+          pageNumber++;
+        } else {
+          hasNextPage = false;
+        }
+      } catch (Exception ex) {
+        log.error("Error fetching 1701 data for page {} of batch starting at PEN {}", pageNumber, ex);
+        break;
+      }
+    }
+
+    return students;
   }
 
   public List<Student> getStudents(UUID correlationID, Set<String> studentIDs) {
