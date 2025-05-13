@@ -52,4 +52,6 @@ public class ApplicationProperties {
   private Integer minSubscriberThreads;
   @Value("${threads.max.subscriber}")
   private Integer maxSubscriberThreads;
+  @Value("${url.api.institute}")
+  private String instituteApiURL;
 }
