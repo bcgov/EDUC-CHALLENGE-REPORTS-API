@@ -30,6 +30,15 @@ public class ChallengeReportsSessionEntity {
   @Column(name = "CHALLENGE_REPORTS_STATUS_CODE")
   private String challengeReportsStatusCode;
 
+  @Column(name = "FUNDING_RATE")
+  private String fundingRate;
+
+  @Column(name = "FINAL_DATE_FOR_CHANGES")
+  private LocalDateTime finalDateForChanges;
+
+  @Column(name = "EXECUTIVE_DIRECTOR_NAME")
+  private String executiveDirectorName;
+
   @Column(name = "CREATE_USER", updatable = false)
   String createUser;
 
