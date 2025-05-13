@@ -1,30 +1,82 @@
 CREATE TABLE CHALLENGE_REPORTS_STATUS_CODE
 (
-    CHALLENGE_REPORTS_STATUS_CODE VARCHAR(10)                         NOT NULL,
-    LABEL                         VARCHAR(50)                         NOT NULL,
-    DESCRIPTION                   VARCHAR(255)                        NOT NULL,
-    DISPLAY_ORDER                 NUMERIC   DEFAULT 1                 NOT NULL,
+    CHALLENGE_REPORTS_STATUS_CODE VARCHAR2(10)                        NOT NULL,
+    LABEL                         VARCHAR2(50)                        NOT NULL,
+    DESCRIPTION                   VARCHAR2(255)                       NOT NULL,
+    DISPLAY_ORDER                 NUMBER    DEFAULT 1                 NOT NULL,
     EFFECTIVE_DATE                TIMESTAMP                           NOT NULL,
     EXPIRY_DATE                   TIMESTAMP                           NOT NULL,
-    LANGUAGE                      VARCHAR(1),
-    CREATE_USER                   VARCHAR(100)                         NOT NULL,
+    CREATE_USER                   VARCHAR2(100)                       NOT NULL,
     CREATE_DATE                   TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    UPDATE_USER                   VARCHAR(100)                         NOT NULL,
+    UPDATE_USER                   VARCHAR2(100)                       NOT NULL,
     UPDATE_DATE                   TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT CHALLENGE_REPORTS_STATUS_CODE_PK PRIMARY KEY (CHALLENGE_REPORTS_STATUS_CODE)
 );
 
-INSERT INTO CHALLENGE_REPORTS_STATUS_CODE (CHALLENGE_REPORTS_STATUS_CODE, LABEL, DESCRIPTION, DISPLAY_ORDER, EFFECTIVE_DATE, EXPIRY_DATE,
-                              CREATE_USER, CREATE_DATE, UPDATE_USER, UPDATE_DATE)
+INSERT INTO CHALLENGE_REPORTS_STATUS_CODE (CHALLENGE_REPORTS_STATUS_CODE, LABEL, DESCRIPTION, DISPLAY_ORDER,
+                                           EFFECTIVE_DATE, EXPIRY_DATE,
+                                           CREATE_USER, CREATE_DATE, UPDATE_USER, UPDATE_DATE)
 VALUES ('PRELIM', 'Preliminary Stage', 'Preliminary Stage', 10,
         to_date('2019-07-01 00:00:00', 'YYYY-MM-DD HH24:MI:SS'),
         to_date('2099-12-31 00:00:00', 'YYYY-MM-DD HH24:MI:SS'),
         'CHALLENGE_REPORTS-API', CURRENT_TIMESTAMP, 'CHALLENGE_REPORTS-API', CURRENT_TIMESTAMP);
 
-INSERT INTO CHALLENGE_REPORTS_STATUS_CODE (CHALLENGE_REPORTS_STATUS_CODE, LABEL, DESCRIPTION, DISPLAY_ORDER, EFFECTIVE_DATE, EXPIRY_DATE,
-                              CREATE_USER, CREATE_DATE, UPDATE_USER, UPDATE_DATE)
+INSERT INTO CHALLENGE_REPORTS_STATUS_CODE (CHALLENGE_REPORTS_STATUS_CODE, LABEL, DESCRIPTION, DISPLAY_ORDER,
+                                           EFFECTIVE_DATE, EXPIRY_DATE,
+                                           CREATE_USER, CREATE_DATE, UPDATE_USER, UPDATE_DATE)
 VALUES ('FINALIZED', 'Finalized Stage', 'Finalized Stage', 20,
         to_date('2021-07-01 00:00:00', 'YYYY-MM-DD HH24:MI:SS'),
         to_date('2099-12-31 00:00:00', 'YYYY-MM-DD HH24:MI:SS'),
         'CHALLENGE_REPORTS-API', CURRENT_TIMESTAMP, 'CHALLENGE_REPORTS-API', CURRENT_TIMESTAMP);
 
+CREATE TABLE CHALLENGE_REPORTS_PERIOD
+(
+    CHALLENGE_REPORTS_PERIOD_ID RAW(16)                             NOT NULL,
+    SCHOOL_YEAR                 VARCHAR2(4)                         NOT NULL,
+    ACTIVE_FROM_DATE            TIMESTAMP                           NOT NULL,
+    ACTIVE_TO_DATE              TIMESTAMP                           NOT NULL,
+    CREATE_USER                 VARCHAR2(100)                       NOT NULL,
+    CREATE_DATE                 TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UPDATE_USER                 VARCHAR2(100)                       NOT NULL,
+    UPDATE_DATE                 TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT CHALLENGE_REPORTS_PERIOD_ID_PK PRIMARY KEY (CHALLENGE_REPORTS_PERIOD_ID)
+);
+
+CREATE TABLE CHALLENGE_REPORTS_SESSION
+(
+    CHALLENGE_REPORTS_SESSION_ID  RAW(16)                             NOT NULL,
+    CHALLENGE_REPORTS_PERIOD_ID   RAW(16)                             NOT NULL,
+    CHALLENGE_REPORTS_STATUS_CODE VARCHAR2(10)                        NOT NULL,
+    CREATE_USER                   VARCHAR2(100)                       NOT NULL,
+    CREATE_DATE                   TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UPDATE_USER                   VARCHAR2(100)                       NOT NULL,
+    UPDATE_DATE                   TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT CHALLENGE_REPORTS_SESSION_ID_PK PRIMARY KEY (CHALLENGE_REPORTS_SESSION_ID)
+);
+
+ALTER TABLE CHALLENGE_REPORTS_SESSION
+    ADD CONSTRAINT FK_PERIOD_CHL_REP_STATUS_CODE FOREIGN KEY (CHALLENGE_REPORTS_STATUS_CODE) REFERENCES CHALLENGE_REPORTS_STATUS_CODE (CHALLENGE_REPORTS_STATUS_CODE);
+
+CREATE TABLE CHALLENGE_REPORTS_POSTED_STUDENT
+(
+    CHALLENGE_REPORTS_POSTED_STUDENT_ID RAW(16)                             NOT NULL,
+    CHALLENGE_REPORTS_SESSION_ID        RAW(16)                             NOT NULL,
+    SCHOOL_ID                           RAW(16)                             NOT NULL,
+    DISTRICT_ID                         RAW(16)                             NOT NULL,
+    STUDENT_ID                          RAW(16)                             NOT NULL,
+    PEN                                 VARCHAR2(10)                        NOT NULL,
+    COURSE_SESSION                      VARCHAR2(6)                         NOT NULL,
+    COURSE_CODE                         VARCHAR2(7)                         NOT NULL,
+    COURSE_LEVEL                        VARCHAR2(3)                         NOT NULL,
+    STUDENT_SURNAME                     VARCHAR2(255)                       NOT NULL,
+    STUDENT_GIVEN_NAME                  VARCHAR2(255)                       NOT NULL,
+    STUDENT_MIDDLE_NAMES                VARCHAR2(255)                       NOT NULL,
+    CREATE_USER                         VARCHAR2(100)                       NOT NULL,
+    CREATE_DATE                         TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UPDATE_USER                         VARCHAR2(100)                       NOT NULL,
+    UPDATE_DATE                         TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT CHALLENGE_REPORTS_POSTED_STUDENT_ID_PK PRIMARY KEY (CHALLENGE_REPORTS_POSTED_STUDENT_ID)
+);
+
+ALTER TABLE CHALLENGE_REPORTS_POSTED_STUDENT
+    ADD CONSTRAINT FK_POSTED_CHL_REP_SESS_ID FOREIGN KEY (CHALLENGE_REPORTS_SESSION_ID) REFERENCES CHALLENGE_REPORTS_SESSION (CHALLENGE_REPORTS_SESSION_ID);
