@@ -43,17 +43,17 @@ echo Removing CHALLENGE_REPORTS API client if exists
 curl -sX DELETE "https://$SOAM_KC/auth/admin/realms/$SOAM_KC_REALM_ID/clients/$CHALLENGE_REPORTS_APIServiceClientID" \
   -H "Authorization: Bearer $TKN"
 
-echo Writing scope WRITE_CHALLENGE_REPORTS_STUDENT
+echo Writing scope WRITE_CHALLENGE_REPORTS
 curl -sX POST "https://$SOAM_KC/auth/admin/realms/$SOAM_KC_REALM_ID/client-scopes" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TKN" \
-  -d "{\"description\": \"Write Assessment Students\",\"id\": \"WRITE_CHALLENGE_REPORTS_STUDENT\",\"name\": \"WRITE_CHALLENGE_REPORTS_STUDENT\",\"protocol\": \"openid-connect\",\"attributes\" : {\"include.in.token.scope\" : \"true\",\"display.on.consent.screen\" : \"false\"}}"
+  -d "{\"description\": \"Write challenge reports\",\"id\": \"WRITE_CHALLENGE_REPORTS\",\"name\": \"WRITE_CHALLENGE_REPORTS\",\"protocol\": \"openid-connect\",\"attributes\" : {\"include.in.token.scope\" : \"true\",\"display.on.consent.screen\" : \"false\"}}"
 
-echo Writing scope READ_CHALLENGE_REPORTS_STUDENT
+echo Writing scope READ_CHALLENGE_REPORTS
 curl -sX POST "https://$SOAM_KC/auth/admin/realms/$SOAM_KC_REALM_ID/client-scopes" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TKN" \
-  -d "{\"description\": \"Read Assessment Students\",\"id\": \"READ_CHALLENGE_REPORTS_STUDENT\",\"name\": \"READ_CHALLENGE_REPORTS_STUDENT\",\"protocol\": \"openid-connect\",\"attributes\" : {\"include.in.token.scope\" : \"true\",\"display.on.consent.screen\" : \"false\"}}"
+  -d "{\"description\": \"Read challenge reports\",\"id\": \"READ_CHALLENGE_REPORTS\",\"name\": \"READ_CHALLENGE_REPORTS\",\"protocol\": \"openid-connect\",\"attributes\" : {\"include.in.token.scope\" : \"true\",\"display.on.consent.screen\" : \"false\"}}"
 
 if [[ -n "$CHALLENGE_REPORTS_APIServiceClientID" && -n "$CHALLENGE_REPORTS_APIServiceClientSecret" && ("$envValue" = "dev" || "$envValue" = "test") ]]; then
   echo

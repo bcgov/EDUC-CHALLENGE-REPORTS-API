@@ -157,39 +157,66 @@ public class RestUtils {
     return Optional.ofNullable(this.districtMap.get(districtID));
   }
 
-  public List<SdcSchoolCollectionStudent> get1701DataForStudents(String collectionID, List<String> studentPens) throws JsonProcessingException {
-    int maxPensPerBatch = 1500;
-    int pageSize = 1500;
+  public PaginatedResponse<Collection> getCollections(String processingYear) throws JsonProcessingException {
+    List<Map<String, Object>> searchCriteriaList = SearchCriteriaBuilder.septemberCollectionsFromLastYear(processingYear);
+    String searchJson = objectMapper.writeValueAsString(searchCriteriaList);
+    String encodedSearchJson = URLEncoder.encode(searchJson, StandardCharsets.UTF_8);
 
-    ExecutorService executor = Executors.newFixedThreadPool(8); // Adjust thread pool size as needed
-    List<CompletableFuture<List<SdcSchoolCollectionStudent>>> futures = new ArrayList<>();
+    int pageNumber = 0;
+    int pageSize = 50;
 
-    for (int i = 0; i < studentPens.size(); i += maxPensPerBatch) {
-      int start = i;
-      int end = Math.min(i + maxPensPerBatch, studentPens.size());
-      List<String> batchPens = new ArrayList<>(studentPens.subList(start, end));
-
-      CompletableFuture<List<SdcSchoolCollectionStudent>> future = CompletableFuture.supplyAsync(() -> {
-        try {
-          List<Map<String, Object>> searchCriteriaList = SearchCriteriaBuilder.byCollectionIdAndStudentPens(collectionID, batchPens);
-          return fetchStudentsForBatch(pageSize, searchCriteriaList);
-        } catch (Exception e) {
-          log.error("Batch fetch failed", e);
-          return Collections.emptyList();
-        }
-      }, executor);
-
-      futures.add(future);
+    try {
+      String fullUrl = this.props.getSdcApiURL()
+              + "/collection/paginated"
+              + "?pageNumber=" + pageNumber
+              + "&pageSize=" + pageSize
+              + "&searchCriteriaList=" + encodedSearchJson;
+      return webClient.get()
+              .uri(fullUrl)
+              .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+              .retrieve()
+              .bodyToMono(new ParameterizedTypeReference<PaginatedResponse<Collection>>() {
+              })
+              .block();
+    } catch (Exception ex) {
+      log.error("Error fetching schools on page {}", pageNumber, ex);
+      return null;
     }
-
-    List<SdcSchoolCollectionStudent> allStudents = futures.stream()
-            .map(CompletableFuture::join)
-            .flatMap(List::stream)
-            .collect(Collectors.toList());
-
-    executor.shutdown();
-    return allStudents;
   }
+
+//  public List<SdcSchoolCollectionStudent> getChallengeReportGradStudentsForYear(String year) throws JsonProcessingException {
+//    int maxPensPerBatch = 1500;
+//    int pageSize = 1500;
+//
+//    ExecutorService executor = Executors.newFixedThreadPool(8); // Adjust thread pool size as needed
+//    List<CompletableFuture<List<SdcSchoolCollectionStudent>>> futures = new ArrayList<>();
+//
+//    for (int i = 0; i < studentPens.size(); i += maxPensPerBatch) {
+//      int start = i;
+//      int end = Math.min(i + maxPensPerBatch, studentPens.size());
+//      List<String> batchPens = new ArrayList<>(studentPens.subList(start, end));
+//
+//      CompletableFuture<List<SdcSchoolCollectionStudent>> future = CompletableFuture.supplyAsync(() -> {
+//        try {
+//          List<Map<String, Object>> searchCriteriaList = SearchCriteriaBuilder.byCollectionIdAndStudentPens(collectionID, batchPens);
+//          return fetchStudentsForBatch(pageSize, searchCriteriaList);
+//        } catch (Exception e) {
+//          log.error("Batch fetch failed", e);
+//          return Collections.emptyList();
+//        }
+//      }, executor);
+//
+//      futures.add(future);
+//    }
+//
+//    List<SdcSchoolCollectionStudent> allStudents = futures.stream()
+//            .map(CompletableFuture::join)
+//            .flatMap(List::stream)
+//            .collect(Collectors.toList());
+//
+//    executor.shutdown();
+//    return allStudents;
+//  }
 
   private List<SdcSchoolCollectionStudent> fetchStudentsForBatch(int pageSize, List<Map<String, Object>> searchCriteriaList) throws JsonProcessingException {
     List<SdcSchoolCollectionStudent> students = new ArrayList<>();
@@ -230,6 +257,40 @@ public class RestUtils {
     }
 
     return students;
+  }
+
+  public List<SdcSchoolCollectionStudent> get1701DataForStudents(String collectionID, List<String> studentPens) throws JsonProcessingException {
+    int maxPensPerBatch = 1500;
+    int pageSize = 1500;
+
+    ExecutorService executor = Executors.newFixedThreadPool(8); // Adjust thread pool size as needed
+    List<CompletableFuture<List<SdcSchoolCollectionStudent>>> futures = new ArrayList<>();
+
+    for (int i = 0; i < studentPens.size(); i += maxPensPerBatch) {
+      int start = i;
+      int end = Math.min(i + maxPensPerBatch, studentPens.size());
+      List<String> batchPens = new ArrayList<>(studentPens.subList(start, end));
+
+      CompletableFuture<List<SdcSchoolCollectionStudent>> future = CompletableFuture.supplyAsync(() -> {
+        try {
+          List<Map<String, Object>> searchCriteriaList = SearchCriteriaBuilder.byCollectionIdAndStudentPens(collectionID, batchPens);
+          return fetchStudentsForBatch(pageSize, searchCriteriaList);
+        } catch (Exception e) {
+          log.error("Batch fetch failed", e);
+          return Collections.emptyList();
+        }
+      }, executor);
+
+      futures.add(future);
+    }
+
+    List<SdcSchoolCollectionStudent> allStudents = futures.stream()
+            .map(CompletableFuture::join)
+            .flatMap(List::stream)
+            .collect(Collectors.toList());
+
+    executor.shutdown();
+    return allStudents;
   }
 
   public List<Student> getStudents(UUID correlationID, Set<String> studentIDs) {
