@@ -19,7 +19,7 @@ public class ChallengeReportsAPIController implements ChallengeReportsAPIEndpoin
     }
 
     @Override
-  public DownloadableReportResponse getMinistryDownloadableReport(UUID districtID) {
+  public DownloadableReportResponse getDownloadableChallengeReport(UUID districtID) {
     return csvReportService.generateChallengeReportForThisYear(districtID);
   }
 }

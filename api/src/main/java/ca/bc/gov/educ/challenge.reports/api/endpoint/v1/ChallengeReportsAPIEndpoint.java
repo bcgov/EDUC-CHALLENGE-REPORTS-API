@@ -20,6 +20,6 @@ public interface ChallengeReportsAPIEndpoint {
   @PreAuthorize("hasAuthority('SCOPE_READ_CHALLENGE_REPORTS')")
   @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "OK"), @ApiResponse(responseCode = "400", description = "BAD REQUEST")})
-  DownloadableReportResponse getMinistryDownloadableReport(@PathVariable UUID districtID);
+  DownloadableReportResponse getDownloadableChallengeReport(@PathVariable UUID districtID);
 
 }
