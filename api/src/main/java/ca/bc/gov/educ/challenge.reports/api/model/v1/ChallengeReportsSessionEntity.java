@@ -1,5 +1,6 @@
 package ca.bc.gov.educ.challenge.reports.api.model.v1;
 
+import ca.bc.gov.educ.challenge.reports.api.util.UpperCase;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.PastOrPresent;
 import lombok.*;
@@ -29,6 +30,7 @@ public class ChallengeReportsSessionEntity {
   @JoinColumn(name = "CHALLENGE_REPORTS_PERIOD_ID", referencedColumnName = "CHALLENGE_REPORTS_PERIOD_ID", updatable = false)
   ChallengeReportsReportingPeriodEntity challengeReportsPeriod;
 
+  @UpperCase
   @Column(name = "CHALLENGE_REPORTS_STATUS_CODE")
   private String challengeReportsStatusCode;
 

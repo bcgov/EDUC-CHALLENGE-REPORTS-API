@@ -21,9 +21,7 @@ public class ChallengeReportsStudentRecord {
 
     private String courseSession;
 
-    private String courseCode;
-
-    private String courseLevel;
+    private String courseCodeAndLevel;
 
     private String studentSurname;
 
