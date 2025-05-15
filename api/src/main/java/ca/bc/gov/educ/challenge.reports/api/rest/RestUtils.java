@@ -8,6 +8,8 @@ import ca.bc.gov.educ.challenge.reports.api.messaging.MessagePublisher;
 import ca.bc.gov.educ.challenge.reports.api.properties.ApplicationProperties;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.Event;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.PaginatedResponse;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.coreg.v1.CourseCode;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.gradstudent.v1.StudentCoursePagination;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.District;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.SchoolTombstone;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
@@ -29,9 +31,9 @@ import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.Collection;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -48,11 +50,13 @@ public class RestUtils {
   public static final String NATS_TIMEOUT = "Either NATS timed out or the response is null , correlationID :: ";
   private static final String CONTENT_TYPE = "Content-Type";
   private final Map<String, SchoolTombstone> schoolMap = new ConcurrentHashMap<>();
+  private final Map<String, CourseCode> coregMap = new ConcurrentHashMap<>();
   private final Map<String, District> districtMap = new ConcurrentHashMap<>();
   private final WebClient webClient;
   private final MessagePublisher messagePublisher;
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final ReadWriteLock schoolLock = new ReentrantReadWriteLock();
+  private final ReadWriteLock coregLock = new ReentrantReadWriteLock();
   private final ReadWriteLock districtLock = new ReentrantReadWriteLock();
   @Getter
   private final ApplicationProperties props;
@@ -78,6 +82,7 @@ public class RestUtils {
 
   private void initialize() {
     this.populateSchoolMap();
+    this.populateCoregMap();
     this.populateDistrictMap();
   }
 
@@ -104,6 +109,21 @@ public class RestUtils {
     log.info("Loaded  {} schools to memory", this.schoolMap.values().size());
   }
 
+  public void populateCoregMap() {
+    val writeLock = this.coregLock.writeLock();
+    try {
+      writeLock.lock();
+      for (val courseCode : this.getCoregCourses()) {
+        this.coregMap.put(courseCode.getCourseID(), courseCode);
+      }
+    } catch (Exception ex) {
+      log.error("Unable to load map cache coreg courses ", ex);
+    } finally {
+      writeLock.unlock();
+    }
+    log.info("Loaded  {} coreg courses to memory", this.coregMap.values().size());
+  }
+
   public List<SchoolTombstone> getSchools() {
     log.info("Calling Institute api to load schools to memory");
     return this.webClient.get()
@@ -111,6 +131,17 @@ public class RestUtils {
             .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
             .retrieve()
             .bodyToFlux(SchoolTombstone.class)
+            .collectList()
+            .block();
+  }
+
+  public List<CourseCode> getCoregCourses() {
+    log.info("Calling COREG API to load schools to memory");
+    return this.webClient.get()
+            .uri(this.props.getCoregApiURL() + "/all/39")
+            .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+            .retrieve()
+            .bodyToFlux(CourseCode.class)
             .collectList()
             .block();
   }
@@ -141,6 +172,14 @@ public class RestUtils {
             .block();
   }
 
+  public Optional<CourseCode> getCoregCourseByID(final String courseID) {
+    if (this.coregMap.isEmpty()) {
+      log.info("Coreg course map is empty reloading courses");
+      this.populateCoregMap();
+    }
+    return Optional.ofNullable(this.coregMap.get(courseID));
+  }
+
   public Optional<SchoolTombstone> getSchoolBySchoolID(final String schoolID) {
     if (this.schoolMap.isEmpty()) {
       log.info("School map is empty reloading schools");
@@ -157,7 +196,7 @@ public class RestUtils {
     return Optional.ofNullable(this.districtMap.get(districtID));
   }
 
-  public PaginatedResponse<Collection> getCollections(String processingYear) throws JsonProcessingException {
+  public PaginatedResponse<Collection> getLastSeptemberCollection(String processingYear) throws JsonProcessingException {
     List<Map<String, Object>> searchCriteriaList = SearchCriteriaBuilder.septemberCollectionsFromLastYear(processingYear);
     String searchJson = objectMapper.writeValueAsString(searchCriteriaList);
     String encodedSearchJson = URLEncoder.encode(searchJson, StandardCharsets.UTF_8);
@@ -184,39 +223,31 @@ public class RestUtils {
     }
   }
 
-//  public List<SdcSchoolCollectionStudent> getChallengeReportGradStudentsForYear(String year) throws JsonProcessingException {
-//    int maxPensPerBatch = 1500;
-//    int pageSize = 1500;
-//
-//    ExecutorService executor = Executors.newFixedThreadPool(8); // Adjust thread pool size as needed
-//    List<CompletableFuture<List<SdcSchoolCollectionStudent>>> futures = new ArrayList<>();
-//
-//    for (int i = 0; i < studentPens.size(); i += maxPensPerBatch) {
-//      int start = i;
-//      int end = Math.min(i + maxPensPerBatch, studentPens.size());
-//      List<String> batchPens = new ArrayList<>(studentPens.subList(start, end));
-//
-//      CompletableFuture<List<SdcSchoolCollectionStudent>> future = CompletableFuture.supplyAsync(() -> {
-//        try {
-//          List<Map<String, Object>> searchCriteriaList = SearchCriteriaBuilder.byCollectionIdAndStudentPens(collectionID, batchPens);
-//          return fetchStudentsForBatch(pageSize, searchCriteriaList);
-//        } catch (Exception e) {
-//          log.error("Batch fetch failed", e);
-//          return Collections.emptyList();
-//        }
-//      }, executor);
-//
-//      futures.add(future);
-//    }
-//
-//    List<SdcSchoolCollectionStudent> allStudents = futures.stream()
-//            .map(CompletableFuture::join)
-//            .flatMap(List::stream)
-//            .collect(Collectors.toList());
-//
-//    executor.shutdown();
-//    return allStudents;
-//  }
+  public List<StudentCoursePagination> getChallengeReportGradStudentCoursesForYear(List<String> courseSessions) throws JsonProcessingException {
+    int pageSize = 5000;
+    int pageNumber = 0;
+
+    var searchCriteriaList = SearchCriteriaBuilder.getChallengeReportGradCriteria(courseSessions);
+
+    String searchJson = objectMapper.writeValueAsString(searchCriteriaList);
+    String encodedSearchJson = URLEncoder.encode(searchJson, StandardCharsets.UTF_8);
+
+    String fullUrl = this.props.getGradStudentApiURL()
+            + "/grad/student/course/search/pagination"
+            + "?pageNumber=" + pageNumber
+            + "&pageSize=" + pageSize
+            + "&sort="
+            + "&searchCriteriaList=" + encodedSearchJson;
+
+    PaginatedResponse<StudentCoursePagination> response = webClient.get()
+            .uri(fullUrl)
+            .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+            .retrieve()
+            .bodyToMono(new ParameterizedTypeReference<PaginatedResponse<StudentCoursePagination>>() {
+            })
+            .block();
+    return response.getContent();
+  }
 
   private List<SdcSchoolCollectionStudent> fetchStudentsForBatch(int pageSize, List<Map<String, Object>> searchCriteriaList) throws JsonProcessingException {
     List<SdcSchoolCollectionStudent> students = new ArrayList<>();
@@ -259,21 +290,21 @@ public class RestUtils {
     return students;
   }
 
-  public List<SdcSchoolCollectionStudent> get1701DataForStudents(String collectionID, List<String> studentPens) throws JsonProcessingException {
+  public List<SdcSchoolCollectionStudent> get1701DataForStudents(String collectionID, List<String> studentIDs) {
     int maxPensPerBatch = 1500;
     int pageSize = 1500;
 
     ExecutorService executor = Executors.newFixedThreadPool(8); // Adjust thread pool size as needed
     List<CompletableFuture<List<SdcSchoolCollectionStudent>>> futures = new ArrayList<>();
 
-    for (int i = 0; i < studentPens.size(); i += maxPensPerBatch) {
+    for (int i = 0; i < studentIDs.size(); i += maxPensPerBatch) {
       int start = i;
-      int end = Math.min(i + maxPensPerBatch, studentPens.size());
-      List<String> batchPens = new ArrayList<>(studentPens.subList(start, end));
+      int end = Math.min(i + maxPensPerBatch, studentIDs.size());
+      List<String> students = new ArrayList<>(studentIDs.subList(start, end));
 
       CompletableFuture<List<SdcSchoolCollectionStudent>> future = CompletableFuture.supplyAsync(() -> {
         try {
-          List<Map<String, Object>> searchCriteriaList = SearchCriteriaBuilder.byCollectionIdAndStudentPens(collectionID, batchPens);
+          List<Map<String, Object>> searchCriteriaList = SearchCriteriaBuilder.getSDCStudentsByCollectionIdAndStudentIDs(collectionID, students);
           return fetchStudentsForBatch(pageSize, searchCriteriaList);
         } catch (Exception e) {
           log.error("Batch fetch failed", e);

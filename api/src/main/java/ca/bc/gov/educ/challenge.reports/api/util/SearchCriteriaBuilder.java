@@ -43,13 +43,13 @@ public class SearchCriteriaBuilder {
     }
 
 
-    public static List<Map<String, Object>> getChallengeReportGradCriteria(String year, List<String> schoolIDs) {
+    public static List<Map<String, Object>> getChallengeReportGradCriteria(List<String> courseSessions) {
         List<Map<String, Object>> searchCriteriaList = new ArrayList<>();
 
         Map<String, Object> collectionIdCriteria = new HashMap<>();
         collectionIdCriteria.put("key", "studentCoursePaginationEntities.courseSession");
-        collectionIdCriteria.put("value", year);
-        collectionIdCriteria.put("operation", "eq");
+        collectionIdCriteria.put("value", String.join(",", courseSessions));
+        collectionIdCriteria.put("operation", "in");
         collectionIdCriteria.put("valueType", "STRING");
 
         Map<String, Object> wrapper1 = new HashMap<>();
@@ -67,26 +67,19 @@ public class SearchCriteriaBuilder {
         Map<String, Object> finalPercentCrit = new HashMap<>();
         eqOrChallengeCrit.put("key", "studentCoursePaginationEntities.completedCoursePercentage");
         eqOrChallengeCrit.put("operation", "gt");
-        eqOrChallengeCrit.put("value", "50");
+        eqOrChallengeCrit.put("value", "49");
         eqOrChallengeCrit.put("valueType", "INTEGER");
-        eqOrChallengeCrit.put("condition", "AND");
-
-        Map<String, Object> schoolIDCrit = new HashMap<>();
-        eqOrChallengeCrit.put("key", "schoolOfRecordId");
-        eqOrChallengeCrit.put("operation", "in");
-        eqOrChallengeCrit.put("value", String.join(",", schoolIDs));
-        eqOrChallengeCrit.put("valueType", "UUID");
         eqOrChallengeCrit.put("condition", "AND");
 
         Map<String, Object> wrapper2 = new HashMap<>();
         wrapper2.put("condition", "AND"); // outer group condition
-        wrapper2.put("searchCriteriaList", List.of(eqOrChallengeCrit, finalPercentCrit, schoolIDCrit));
+        wrapper2.put("searchCriteriaList", List.of(eqOrChallengeCrit, finalPercentCrit));
         searchCriteriaList.add(wrapper2);
 
         return searchCriteriaList;
     }
 
-    public static List<Map<String, Object>> byCollectionIdAndStudentPens(String collectionID, List<String> studentPens) {
+    public static List<Map<String, Object>> getSDCStudentsByCollectionIdAndStudentIDs(String collectionID, List<String> studentIDs) {
         List<Map<String, Object>> searchCriteriaList = new ArrayList<>();
 
         // First block: collection ID
@@ -101,11 +94,11 @@ public class SearchCriteriaBuilder {
         wrapper1.put("searchCriteriaList", List.of(collectionIdCriteria));
         searchCriteriaList.add(wrapper1);
 
-        // Second block: studentPens (IN)
+        // Second block: studentIDs (IN)
         Map<String, Object> pensCriteria = new HashMap<>();
         pensCriteria.put("key", "assignedPen");
         pensCriteria.put("operation", "in");
-        pensCriteria.put("value", String.join(",", studentPens));
+        pensCriteria.put("value", String.join(",", studentIDs));
         pensCriteria.put("valueType", "STRING");
         pensCriteria.put("condition", "AND"); // inside the group condition
 

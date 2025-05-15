@@ -23,9 +23,11 @@ public class ChallengeReportsSessionEntity {
   @Column(name = "CHALLENGE_REPORTS_SESSION_ID", unique = true, updatable = false, columnDefinition = "BINARY(16)")
   private UUID challengeReportsSessionID;
 
-  @Basic
-  @Column(name = "CHALLENGE_REPORTS_PERIOD_ID")
-  private UUID challengeReportsPeriodID;
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  @ManyToOne(optional = false, targetEntity = ChallengeReportsReportingPeriodEntity.class)
+  @JoinColumn(name = "CHALLENGE_REPORTS_PERIOD_ID", referencedColumnName = "CHALLENGE_REPORTS_PERIOD_ID", updatable = false)
+  ChallengeReportsReportingPeriodEntity challengeReportsPeriod;
 
   @Column(name = "CHALLENGE_REPORTS_STATUS_CODE")
   private String challengeReportsStatusCode;

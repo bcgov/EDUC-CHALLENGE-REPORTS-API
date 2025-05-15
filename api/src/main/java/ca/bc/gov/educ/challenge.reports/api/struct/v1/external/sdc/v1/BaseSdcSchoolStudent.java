@@ -68,11 +68,9 @@ public class BaseSdcSchoolStudent extends BaseRequest {
   @NotNull(message = "nativeAncestryInd cannot be null")
   private String nativeAncestryInd;
 
-
   @Size(max = 10)
   @NotNull(message = "enrolledGradeCode cannot be null")
   private String enrolledGradeCode;
-
 
   private String schoolID;
 
@@ -90,5 +88,7 @@ public class BaseSdcSchoolStudent extends BaseRequest {
 
   @Size(max = 10)
   private String assignedPen;
+
+  private String assignedStudentId;
 
 }

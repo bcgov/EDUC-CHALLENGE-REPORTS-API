@@ -3,6 +3,7 @@ package ca.bc.gov.educ.challenge.reports.api.controller.v1;
 import ca.bc.gov.educ.challenge.reports.api.endpoint.v1.ChallengeReportsAPIEndpoint;
 import ca.bc.gov.educ.challenge.reports.api.service.v1.CSVReportService;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.DownloadableReportResponse;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,7 +20,7 @@ public class ChallengeReportsAPIController implements ChallengeReportsAPIEndpoin
     }
 
     @Override
-  public DownloadableReportResponse getDownloadableChallengeReport(UUID districtID) {
+  public DownloadableReportResponse getDownloadableChallengeReport(UUID districtID) throws JsonProcessingException {
     return csvReportService.generateChallengeReportForThisYear(districtID);
   }
 }
