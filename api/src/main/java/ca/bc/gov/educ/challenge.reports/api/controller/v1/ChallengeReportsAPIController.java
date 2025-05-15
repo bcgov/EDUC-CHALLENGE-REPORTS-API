@@ -37,6 +37,11 @@ public class ChallengeReportsAPIController implements ChallengeReportsAPIEndpoin
     }
 
     @Override
+    public ChallengeReportsSession getChallengeReportsSession() {
+        return challengeReportSessionMapper.toStructure(challengeReportsService.getChallengeReportActiveSession());
+    }
+
+    @Override
     public ChallengeReportsSession updateChallengeReportsSessionAttributes(ChallengeReportsSession challengeReportsSession, UUID challengeReportSessionID) {
         ValidationUtil.validatePayload(() -> this.challengeReportsSessionValidator.validatePayload(challengeReportsSession));
         RequestUtil.setAuditColumnsForUpdate(challengeReportsSession);

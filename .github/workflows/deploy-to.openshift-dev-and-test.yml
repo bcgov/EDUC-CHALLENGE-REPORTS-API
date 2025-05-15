@@ -14,6 +14,11 @@ env:
   DB_USER: ${{ secrets.DB_USER }}
   SPLUNK_TOKEN: ${{ secrets.SPLUNK_TOKEN }}
 
+  CHES_CLIENT_ID: ${{ secrets.CHES_CLIENT_ID }}
+  CHES_CLIENT_SECRET: ${{ secrets.CHES_CLIENT_SECRET }}
+  CHES_TOKEN_URL: ${{ secrets.CHES_TOKEN_URL }}
+  CHES_ENDPOINT_URL: ${{ secrets.CHES_ENDPOINT_URL }}
+
   # 🖊️ EDIT to change the image registry settings.
   # Registries such as GHCR, Quay.io, and Docker Hub are supported.
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}

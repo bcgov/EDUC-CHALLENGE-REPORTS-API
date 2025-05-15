@@ -31,4 +31,8 @@ public class ChallengeReportsSession extends BaseRequest{
     @NotNull(message = "executiveDirectorName can not be null.")
     private String executiveDirectorName;
 
+    @Size(max = 255)
+    @NotNull(message = "resourceManagementDirectorName can not be null.")
+    private String resourceManagementDirectorName;
+
 }

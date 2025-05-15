@@ -30,6 +30,12 @@ public interface ChallengeReportsAPIEndpoint {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "OK"), @ApiResponse(responseCode = "400", description = "BAD REQUEST")})
   DownloadableReportResponse getDownloadableChallengeReport(@PathVariable UUID districtID) throws JsonProcessingException;
 
+  @GetMapping("/activeSession")
+  @PreAuthorize("hasAuthority('SCOPE_READ_CHALLENGE_REPORTS')")
+  @Transactional(readOnly = true)
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "OK"), @ApiResponse(responseCode = "400", description = "BAD REQUEST")})
+  ChallengeReportsSession getChallengeReportsSession();
+
   @PutMapping("/{challengeReportSessionID}")
   @PreAuthorize("hasAuthority('SCOPE_WRITE_CHALLENGE_REPORTS')")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "OK"), @ApiResponse(responseCode = "400", description = "BAD REQUEST"), @ApiResponse(responseCode = "404", description = "NOT FOUND")})

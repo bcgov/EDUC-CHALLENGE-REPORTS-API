@@ -43,6 +43,9 @@ public class ChallengeReportsSessionEntity {
   @Column(name = "EXECUTIVE_DIRECTOR_NAME")
   private String executiveDirectorName;
 
+  @Column(name = "RESOURCE_MANAGEMENT_DIRECTOR")
+  private String resourceManagementDirectorName;
+
   @Column(name = "CREATE_USER", updatable = false)
   String createUser;
 

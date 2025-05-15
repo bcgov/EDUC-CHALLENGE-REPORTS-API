@@ -6,6 +6,7 @@ import ca.bc.gov.educ.challenge.reports.api.constants.v1.TopicsEnum;
 import ca.bc.gov.educ.challenge.reports.api.exception.ChallengeReportsAPIRuntimeException;
 import ca.bc.gov.educ.challenge.reports.api.messaging.MessagePublisher;
 import ca.bc.gov.educ.challenge.reports.api.properties.ApplicationProperties;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.CHESEmail;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.Event;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.PaginatedResponse;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.coreg.v1.CourseCode;
@@ -25,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
@@ -34,6 +36,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.Collection;
+import reactor.core.publisher.Mono;
+
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -58,6 +62,7 @@ public class RestUtils {
   private final ReadWriteLock schoolLock = new ReentrantReadWriteLock();
   private final ReadWriteLock coregLock = new ReentrantReadWriteLock();
   private final ReadWriteLock districtLock = new ReentrantReadWriteLock();
+  private final WebClient chesWebClient;
   @Getter
   private final ApplicationProperties props;
 
@@ -67,9 +72,10 @@ public class RestUtils {
   private final Map<String, List<UUID>> independentAuthorityToSchoolIDMap = new ConcurrentHashMap<>();
 
   @Autowired
-  public RestUtils(WebClient webClient, final ApplicationProperties props, final MessagePublisher messagePublisher) {
+  public RestUtils(@Qualifier("chesWebClient") final WebClient chesWebClient, WebClient webClient, final ApplicationProperties props, final MessagePublisher messagePublisher) {
     this.webClient = webClient;
     this.props = props;
+    this.chesWebClient = chesWebClient;
     this.messagePublisher = messagePublisher;
   }
 
@@ -343,5 +349,44 @@ public class RestUtils {
       Thread.currentThread().interrupt();
       throw new ChallengeReportsAPIRuntimeException(ex.getMessage());
     }
+  }
+
+  public void sendEmail(final String fromEmail, final List<String> toEmail, final String body, final String subject) {
+    this.sendEmail(this.getChesEmail(fromEmail, toEmail, body, subject));
+  }
+
+  private void sendEmail(final CHESEmail chesEmail) {
+    this.chesWebClient
+            .post()
+            .uri(this.props.getChesEndpointURL())
+            .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+            .body(Mono.just(chesEmail), CHESEmail.class)
+            .retrieve()
+            .bodyToMono(String.class)
+            .doOnError(error -> this.logError(error, chesEmail))
+            .doOnSuccess(success -> this.onSendEmailSuccess(success, chesEmail))
+            .block();
+  }
+
+  public CHESEmail getChesEmail(final String fromEmail, final List<String> toEmail, final String body, final String subject) {
+    final CHESEmail chesEmail = new CHESEmail();
+    chesEmail.setBody(body);
+    chesEmail.setBodyType("html");
+    chesEmail.setDelayTS(0);
+    chesEmail.setEncoding("utf-8");
+    chesEmail.setFrom(fromEmail);
+    chesEmail.setPriority("normal");
+    chesEmail.setSubject(subject);
+    chesEmail.setTag("tag");
+    chesEmail.getTo().addAll(toEmail);
+    return chesEmail;
+  }
+
+  private void logError(final Throwable throwable, final CHESEmail chesEmailEntity) {
+    log.error("Error from CHES API call :: {} ", chesEmailEntity, throwable);
+  }
+
+  private void onSendEmailSuccess(final String s, final CHESEmail chesEmailEntity) {
+    log.info("Email sent success :: {} :: {}", chesEmailEntity, s);
   }
 }

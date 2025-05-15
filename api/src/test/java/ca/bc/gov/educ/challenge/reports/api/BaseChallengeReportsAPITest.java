@@ -13,7 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 import java.time.LocalDateTime;
 
 @SpringBootTest(classes = {ChallengeReportsApiApplication.class})
-@ActiveProfiles("test")
+@ActiveProfiles("testWebclient")
 @AutoConfigureMockMvc
 public abstract class BaseChallengeReportsAPITest {
 
