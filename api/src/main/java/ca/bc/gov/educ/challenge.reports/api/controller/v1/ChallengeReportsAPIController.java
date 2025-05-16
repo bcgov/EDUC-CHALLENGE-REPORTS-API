@@ -9,16 +9,15 @@ import ca.bc.gov.educ.challenge.reports.api.model.v1.ChallengeReportsSagaEntity;
 import ca.bc.gov.educ.challenge.reports.api.orchestrator.base.Orchestrator;
 import ca.bc.gov.educ.challenge.reports.api.service.v1.CSVReportService;
 import ca.bc.gov.educ.challenge.reports.api.service.v1.ChallengeReportsService;
-import ca.bc.gov.educ.challenge.reports.api.struct.v1.ChallengeReportsSession;
-import ca.bc.gov.educ.challenge.reports.api.struct.v1.DownloadableReportResponse;
-import ca.bc.gov.educ.challenge.reports.api.struct.v1.FinalStageSagaData;
-import ca.bc.gov.educ.challenge.reports.api.struct.v1.PreliminaryStageSagaData;
+import ca.bc.gov.educ.challenge.reports.api.service.v1.EmailService;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.*;
 import ca.bc.gov.educ.challenge.reports.api.util.RequestUtil;
 import ca.bc.gov.educ.challenge.reports.api.util.ValidationUtil;
 import ca.bc.gov.educ.challenge.reports.api.validator.ChallengeReportsSessionValidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.validator.constraints.Email;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.NOT_STARTED;
+import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.PRELIM;
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.SagaEnum.FINAL_STAGE_SAGA;
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.SagaEnum.PRELIMINARY_STAGE_SAGA;
 import static lombok.AccessLevel.PRIVATE;
@@ -70,7 +71,14 @@ public class ChallengeReportsAPIController implements ChallengeReportsAPIEndpoin
 
     @Override
     public ResponseEntity<String> generateAndSendSampleEmail(String currentStage) {
-        return null;
+        EmailData emailData = new EmailData();
+        if(currentStage.equalsIgnoreCase(NOT_STARTED.toString()) || currentStage.equalsIgnoreCase(PRELIM.toString())){
+            //           send prelim stage email
+        }else{
+            //           send final stage email
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body("Email sent successfully.");
     }
 
     @Override
