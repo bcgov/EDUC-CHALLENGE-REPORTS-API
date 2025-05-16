@@ -10,6 +10,7 @@ import ca.bc.gov.educ.challenge.reports.api.struct.v1.CHESEmail;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.Event;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.PaginatedResponse;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.coreg.v1.CourseCode;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.edx.v1.EdxUser;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.gradstudent.v1.StudentCoursePagination;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.District;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.SchoolTombstone;
@@ -56,9 +57,11 @@ public class RestUtils {
   private final Map<String, SchoolTombstone> schoolMap = new ConcurrentHashMap<>();
   private final Map<String, CourseCode> coregMap = new ConcurrentHashMap<>();
   private final Map<String, District> districtMap = new ConcurrentHashMap<>();
+  private final Map<UUID, List<EdxUser>> edxDistrictUserMap = new ConcurrentHashMap<>();
   private final WebClient webClient;
   private final MessagePublisher messagePublisher;
   private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ReadWriteLock edxUsersLock = new ReentrantReadWriteLock();
   private final ReadWriteLock schoolLock = new ReentrantReadWriteLock();
   private final ReadWriteLock coregLock = new ReentrantReadWriteLock();
   private final ReadWriteLock districtLock = new ReentrantReadWriteLock();
@@ -90,6 +93,7 @@ public class RestUtils {
     this.populateSchoolMap();
     this.populateCoregMap();
     this.populateDistrictMap();
+    this.populateEdxUsersMap();
   }
 
   @Scheduled(cron = "${schedule.jobs.load.school.cron}")
@@ -115,6 +119,23 @@ public class RestUtils {
     log.info("Loaded  {} schools to memory", this.schoolMap.values().size());
   }
 
+  public void populateEdxUsersMap() {
+    val writeLock = this.edxUsersLock.writeLock();
+    try {
+      writeLock.lock();
+      for (val edxUser : this.getEdxUsers()) {
+        for(val edxUserDistrict: edxUser.getEdxUserDistricts()) {
+          this.edxDistrictUserMap.computeIfAbsent(edxUserDistrict.getDistrictID(), k -> new ArrayList<>()).add(edxUser);
+        }
+      }
+    } catch (Exception ex) {
+      log.error("Unable to load map cache EDX users {}", ex);
+    } finally {
+      writeLock.unlock();
+    }
+    log.info("Loaded  {} EDX district users to memory", this.edxDistrictUserMap.values().size());
+  }
+
   public void populateCoregMap() {
     val writeLock = this.coregLock.writeLock();
     try {
@@ -128,6 +149,17 @@ public class RestUtils {
       writeLock.unlock();
     }
     log.info("Loaded  {} coreg courses to memory", this.coregMap.values().size());
+  }
+
+  public List<EdxUser> getEdxUsers() {
+    log.info("Calling EDX API to load EDX users to memory");
+    return this.webClient.get()
+            .uri(this.props.getEdxApiURL() + "/users")
+            .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+            .retrieve()
+            .bodyToFlux(EdxUser.class)
+            .collectList()
+            .block();
   }
 
   public List<SchoolTombstone> getSchools() {
@@ -227,6 +259,15 @@ public class RestUtils {
       log.error("Error fetching schools on page {}", pageNumber, ex);
       return null;
     }
+  }
+
+  public List<EdxUser> getEdxUsersForDistrict(final UUID districtID) {
+    if (this.edxDistrictUserMap.isEmpty()) {
+      log.info("EDX users district map is empty reloading schools");
+      this.populateEdxUsersMap();
+    }
+    var users = this.edxDistrictUserMap.get(districtID);
+    return users != null ? users : new ArrayList<>();
   }
 
   public List<StudentCoursePagination> getChallengeReportGradStudentCoursesForYear(List<String> courseSessions) throws JsonProcessingException {
