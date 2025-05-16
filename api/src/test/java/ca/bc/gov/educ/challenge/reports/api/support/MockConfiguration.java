@@ -2,6 +2,7 @@ package ca.bc.gov.educ.challenge.reports.api.support;
 
 
 import ca.bc.gov.educ.challenge.reports.api.messaging.NatsConnection;
+import ca.bc.gov.educ.challenge.reports.api.messaging.jetstream.Publisher;
 import io.nats.client.Connection;
 import org.mockito.Mockito;
 import org.springframework.context.annotation.Bean;
@@ -40,5 +41,11 @@ public class MockConfiguration {
   @Primary
   public WebClient webClient() {
     return Mockito.mock(WebClient.class);
+  }
+
+  @Bean
+  @Primary
+  public Publisher publisher() {
+    return Mockito.mock(Publisher.class);
   }
 }
