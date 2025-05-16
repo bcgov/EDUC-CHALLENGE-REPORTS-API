@@ -20,6 +20,7 @@ public class ChallengeReportsService {
     return challengeReportsSessionRepository.findActiveReportingPeriodSession().orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "challengeReportsSession", "activeSession"));
   }
 
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public ChallengeReportsSessionEntity updateChallengeReportsSessionAttributes(ChallengeReportsSessionEntity challengeReportsSessionEntity) {
     var currentSession = this.challengeReportsSessionRepository.findById(challengeReportsSessionEntity.getChallengeReportsSessionID()).orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "challengeReportsSession", challengeReportsSessionEntity.getChallengeReportsSessionID().toString()));
     BeanUtils.copyProperties(challengeReportsSessionEntity, currentSession, "challengeReportsSessionID", "challengeReportsStatusCode");
