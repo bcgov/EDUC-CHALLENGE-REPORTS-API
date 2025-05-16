@@ -39,9 +39,23 @@ public class FinalStageOrchestrator extends BaseOrchestrator<FinalStageSagaData>
     @Override
     public void populateStepsToExecuteMap() {
         this.stepBuilder()
-                .begin(SEND_OUT_FINAL_EMAIL, this::sendFinalStageEmails)
-                .step(SEND_OUT_FINAL_EMAIL, FINAL_EMAIL_SENT, UPDATE_SESSION_STATUS, this::updateSessionStatus)
-                .end(UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED);
+                .begin(FETCH_AND_STORE_STUDENTS, this::fetchAndStoreFinalSetOfStudents)
+                .step(FETCH_AND_STORE_STUDENTS, STUDENTS_FETCHED_AND_STORED, UPDATE_SESSION_STATUS, this::updateSessionStatus)
+                .step(UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED, SEND_OUT_FINAL_EMAIL, this::sendFinalStageEmails)
+                .end(SEND_OUT_FINAL_EMAIL, FINAL_EMAIL_SENT);
+    }
+
+
+    public void fetchAndStoreFinalSetOfStudents(final Event event, final ChallengeReportsSagaEntity saga, final FinalStageSagaData sagaData) throws JsonProcessingException {
+        final ChallengeReportsSagaEventEntity eventStates = this.createEventState(saga, event.getEventType(), event.getEventOutcome(), event.getEventPayload());
+        saga.setSagaState(FETCH_AND_STORE_STUDENTS.toString());
+        saga.setStatus(IN_PROGRESS.toString());
+        this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
+
+        //Change me
+        //fetch and store students
+
+        postEvent(saga, sagaData, FETCH_AND_STORE_STUDENTS, STUDENTS_FETCHED_AND_STORED);
     }
 
     public void sendFinalStageEmails(final Event event, final ChallengeReportsSagaEntity saga, final FinalStageSagaData sagaData) throws JsonProcessingException {
