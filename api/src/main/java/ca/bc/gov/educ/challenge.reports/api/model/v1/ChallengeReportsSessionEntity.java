@@ -46,6 +46,12 @@ public class ChallengeReportsSessionEntity {
   @Column(name = "RESOURCE_MANAGEMENT_DIRECTOR")
   private String resourceManagementDirectorName;
 
+  @Column(name = "PRELIMINARY_STAGE_COMPLETION_DATE")
+  private LocalDateTime preliminaryStageCompletionDate;
+
+  @Column(name = "FINAL_STAGE_COMPLETION_DATE")
+  private LocalDateTime finalStageCompletionDate;
+
   @Column(name = "CREATE_USER", updatable = false)
   String createUser;
 

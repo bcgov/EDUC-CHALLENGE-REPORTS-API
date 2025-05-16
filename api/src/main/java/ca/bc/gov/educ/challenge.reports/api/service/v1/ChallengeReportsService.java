@@ -14,6 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.NOT_STARTED;
+import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.PRELIM;
+
 @RequiredArgsConstructor
 @Service
 public class ChallengeReportsService {
@@ -37,6 +40,13 @@ public class ChallengeReportsService {
     currentSession.setUpdateDate(LocalDateTime.now());
     currentSession.setUpdateUser(updateUser);
     currentSession.setChallengeReportsStatusCode(status.toString());
+
+    if(status.equals(PRELIM)){
+      currentSession.setPreliminaryStageCompletionDate(LocalDateTime.now());
+    }else{
+      currentSession.setFinalStageCompletionDate(LocalDateTime.now());
+    }
+
     this.challengeReportsSessionRepository.save(currentSession);
   }
 }
