@@ -63,7 +63,7 @@ public class FinalStageOrchestrator extends BaseOrchestrator<FinalStageSagaData>
         this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
 
         //service call
-        challengeReportsService.updateChallengeReportsStatus(ChallengeReportsStatus.FINALIZED);
+        challengeReportsService.updateChallengeReportsStatus(ChallengeReportsStatus.FINALIZED, sagaData.getUpdateUser());
 
         postEvent(saga, sagaData, UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED);
     }

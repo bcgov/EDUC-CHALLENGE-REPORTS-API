@@ -74,15 +74,17 @@ public class ChallengeReportsAPIController implements ChallengeReportsAPIEndpoin
     }
 
     @Override
-    public ResponseEntity<String> startPreliminaryStage() {
+    public ResponseEntity<String> startPreliminaryStage(String updateUser) {
         PreliminaryStageSagaData sagaData = new PreliminaryStageSagaData();
+        sagaData.setUpdateUser(updateUser);
         sagaData.setChallengeReportSessionID(challengeReportsService.getChallengeReportActiveSession().getChallengeReportsSessionID().toString());
         return processPreliminaryStageSaga(sagaData);
     }
 
     @Override
-    public ResponseEntity<String> startFinalStage() {
+    public ResponseEntity<String> startFinalStage(String updateUser) {
         FinalStageSagaData sagaData = new FinalStageSagaData();
+        sagaData.setUpdateUser(updateUser);
         sagaData.setChallengeReportSessionID(challengeReportsService.getChallengeReportActiveSession().getChallengeReportsSessionID().toString());
         return processFinalStageSaga(sagaData);
     }

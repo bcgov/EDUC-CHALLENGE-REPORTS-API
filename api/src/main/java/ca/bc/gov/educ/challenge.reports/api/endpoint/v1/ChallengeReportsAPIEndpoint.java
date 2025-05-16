@@ -45,23 +45,23 @@ public interface ChallengeReportsAPIEndpoint {
   ChallengeReportsSession updateChallengeReportsSessionAttributes(@Validated @RequestBody ChallengeReportsSession challengeReportsSession, @PathVariable UUID challengeReportSessionID) throws JsonProcessingException;
 
   @PostMapping("/email/{currentStage}")
-  @PreAuthorize("hasAuthority('SCOPE_READ_CHALLENGE_REPORTS')")
+  @PreAuthorize("hasAuthority('SCOPE_WRITE_CHALLENGE_REPORTS')")
   @Transactional(readOnly = true)
   @ResponseStatus(CREATED)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "OK"), @ApiResponse(responseCode = "400", description = "BAD REQUEST")})
   ResponseEntity<String> generateAndSendSampleEmail(@PathVariable String currentStage);
 
-  @PostMapping("/preliminaryStage")
-  @PreAuthorize("hasAuthority('SCOPE_READ_CHALLENGE_REPORTS')")
+  @PostMapping("/preliminaryStage/{updateUser}")
+  @PreAuthorize("hasAuthority('SCOPE_WRITE_CHALLENGE_REPORTS')")
   @Transactional(readOnly = true)
   @ResponseStatus(OK)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "OK"), @ApiResponse(responseCode = "400", description = "BAD REQUEST")})
-  ResponseEntity<String> startPreliminaryStage();
+  ResponseEntity<String> startPreliminaryStage(@PathVariable String updateUser);
 
-  @PostMapping("/finalStage")
-  @PreAuthorize("hasAuthority('SCOPE_READ_CHALLENGE_REPORTS')")
+  @PostMapping("/finalStage/{updateUser}")
+  @PreAuthorize("hasAuthority('SCOPE_WRITE_CHALLENGE_REPORTS')")
   @Transactional(readOnly = true)
   @ResponseStatus(OK)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "OK"), @ApiResponse(responseCode = "400", description = "BAD REQUEST")})
-  ResponseEntity<String> startFinalStage();
+  ResponseEntity<String> startFinalStage(@PathVariable String updateUser);
 }

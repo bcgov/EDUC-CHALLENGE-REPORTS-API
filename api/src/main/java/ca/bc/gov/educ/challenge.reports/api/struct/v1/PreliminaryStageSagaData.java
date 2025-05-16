@@ -22,4 +22,6 @@ public class PreliminaryStageSagaData implements Serializable {
     @NotNull(message="collectionID cannot be null.")
     private String challengeReportSessionID;
 
+    @NotNull(message="updateUser cannot be null.")
+    private String updateUser;
 }
