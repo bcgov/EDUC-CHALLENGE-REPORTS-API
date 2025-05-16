@@ -16,7 +16,7 @@ import java.io.Serializable;
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 @EqualsAndHashCode(callSuper=false)
-public class PreliminaryStageSagaData implements Serializable {
+public class FinalStageSagaData implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @NotNull(message="collectionID cannot be null.")

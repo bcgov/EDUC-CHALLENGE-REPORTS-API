@@ -29,6 +29,8 @@ public interface Orchestrator {
 
   ChallengeReportsSagaEntity createSaga(final String payload, final UUID challengeReportsSessionID, final String userName);
 
+  ChallengeReportsSagaEntity createSaga(ChallengeReportsSagaEntity saga);
+
   /**
    * Replay saga.
    *

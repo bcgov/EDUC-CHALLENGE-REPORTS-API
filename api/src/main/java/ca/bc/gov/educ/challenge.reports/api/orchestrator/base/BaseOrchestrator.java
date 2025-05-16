@@ -518,6 +518,12 @@ public abstract class BaseOrchestrator<T> implements EventHandler, Orchestrator 
     return this.sagaService.createSagaRecordInDB(this.sagaName, userName, payload, challengeReportsSessionID);
   }
 
+  @Override
+  @Transactional
+  public ChallengeReportsSagaEntity createSaga(ChallengeReportsSagaEntity saga) {
+    return this.sagaService.createSagaRecordInDB(this.sagaName, saga.getUpdateUser(), saga.getPayload(), saga.getChallengeReportsSessionId());
+  }
+
   @Transactional
   public List<ChallengeReportsSagaEntity> createSagas(final List<ChallengeReportsSagaEntity> sagaEntities) {
     return this.sagaService.createSagaRecordsInDB(sagaEntities);
