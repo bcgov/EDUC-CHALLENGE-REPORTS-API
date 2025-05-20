@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
+import java.time.Year;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Map;
@@ -69,7 +70,7 @@ public class EmailService {
               .templateName("preliminary.sample.staff")
               .emailFields(Map.of(
                       "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
-                      "schoolYear", getBlankValueIfRequired(activeSession.getChallengeReportsPeriod().getSchoolYear()),
+                      "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
                       "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(DateTimeFormatter.ISO_LOCAL_DATE) : "",
                       "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
                       "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName())
@@ -87,7 +88,7 @@ public class EmailService {
               .templateName("final.sample.staff")
               .emailFields(Map.of(
                       "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
-                      "schoolYear", getBlankValueIfRequired(activeSession.getChallengeReportsPeriod().getSchoolYear()),
+                      "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
                       "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(DateTimeFormatter.ISO_LOCAL_DATE) : "",
                       "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
                       "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName()),
@@ -105,6 +106,16 @@ public class EmailService {
     }
 
     return s;
+  }
+
+  private String getYearWithNextValue(String schoolYear){
+    if(StringUtils.isBlank(schoolYear)){
+      return "";
+    }
+
+    var year = Year.of(Integer.parseInt(schoolYear));
+
+    return schoolYear + "/" + year.plusYears(1);
   }
 
 
