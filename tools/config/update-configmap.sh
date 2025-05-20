@@ -99,7 +99,7 @@ curl -sX POST "https://$SOAM_KC/auth/admin/realms/$SOAM_KC_REALM_ID/client-scope
   -d "{\"description\": \"Read Challenge Reports Codes\",\"id\": \"READ_CHALLENGE_REPORTS_CODES\",\"name\": \"READ_CHALLENGE_REPORTS_CODES\",\"protocol\": \"openid-connect\",\"attributes\" : {\"include.in.token.scope\" : \"true\",\"display.on.consent.screen\" : \"false\"}}"
 
 
-###########################################################
+############################################################
 #Setup for config-map
 ###########################################################
 SPLUNK_URL="gww.splunk.educ.gov.bc.ca"
