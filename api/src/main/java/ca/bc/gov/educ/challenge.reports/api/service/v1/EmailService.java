@@ -69,7 +69,7 @@ public class EmailService {
               .emailFields(Map.of(
                       "fundingRate", activeSession.getFundingRate(),
                       "schoolYear", activeSession.getChallengeReportsPeriod().getSchoolYear(),
-                      "finalDateForChanges", activeSession.getFinalDateForChanges().format(DateTimeFormatter.ISO_LOCAL_DATE),
+                      "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(DateTimeFormatter.ISO_LOCAL_DATE) : "",
                       "executiveDirectorName", activeSession.getExecutiveDirectorName(),
                       "resourceManagementDirectorName", activeSession.getResourceManagementDirectorName()
               ))
@@ -87,10 +87,10 @@ public class EmailService {
               .emailFields(Map.of(
                       "fundingRate", activeSession.getFundingRate(),
                       "schoolYear", activeSession.getChallengeReportsPeriod().getSchoolYear(),
-                      "finalDateForChanges", activeSession.getFinalDateForChanges().format(DateTimeFormatter.ISO_LOCAL_DATE),
+                      "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(DateTimeFormatter.ISO_LOCAL_DATE) : "",
                       "executiveDirectorName", activeSession.getExecutiveDirectorName(),
                       "resourceManagementDirectorName", activeSession.getResourceManagementDirectorName(),
-                      "preliminaryStageCompletionDate", activeSession.getPreliminaryStageCompletionDate().format(DateTimeFormatter.ISO_LOCAL_DATE)
+                      "preliminaryStageCompletionDate", activeSession.getPreliminaryStageCompletionDate() != null ? activeSession.getPreliminaryStageCompletionDate().format(DateTimeFormatter.ISO_LOCAL_DATE) : ""
               ))
               .build();
     }
