@@ -5,6 +5,7 @@ import ca.bc.gov.educ.challenge.reports.api.properties.EmailProperties;
 import ca.bc.gov.educ.challenge.reports.api.rest.RestUtils;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.EmailData;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,11 +68,11 @@ public class EmailService {
               .subject(subject)
               .templateName("email.template.preliminary.sample.staff")
               .emailFields(Map.of(
-                      "fundingRate", activeSession.getFundingRate(),
-                      "schoolYear", activeSession.getChallengeReportsPeriod().getSchoolYear(),
+                      "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
+                      "schoolYear", getBlankValueIfRequired(activeSession.getChallengeReportsPeriod().getSchoolYear()),
                       "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(DateTimeFormatter.ISO_LOCAL_DATE) : "",
-                      "executiveDirectorName", activeSession.getExecutiveDirectorName(),
-                      "resourceManagementDirectorName", activeSession.getResourceManagementDirectorName()
+                      "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
+                      "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName())
               ))
               .build();
     }else{
@@ -85,17 +86,25 @@ public class EmailService {
               .subject(subject)
               .templateName("email.template.final.sample.staff")
               .emailFields(Map.of(
-                      "fundingRate", activeSession.getFundingRate(),
-                      "schoolYear", activeSession.getChallengeReportsPeriod().getSchoolYear(),
+                      "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
+                      "schoolYear", getBlankValueIfRequired(activeSession.getChallengeReportsPeriod().getSchoolYear()),
                       "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(DateTimeFormatter.ISO_LOCAL_DATE) : "",
-                      "executiveDirectorName", activeSession.getExecutiveDirectorName(),
-                      "resourceManagementDirectorName", activeSession.getResourceManagementDirectorName(),
+                      "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
+                      "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName()),
                       "preliminaryStageCompletionDate", activeSession.getPreliminaryStageCompletionDate() != null ? activeSession.getPreliminaryStageCompletionDate().format(DateTimeFormatter.ISO_LOCAL_DATE) : ""
               ))
               .build();
     }
 
     sendEmail(emailNotification);
+  }
+
+  private String getBlankValueIfRequired(String s){
+    if(StringUtils.isBlank(s)){
+      return "";
+    }
+
+    return s;
   }
 
 
