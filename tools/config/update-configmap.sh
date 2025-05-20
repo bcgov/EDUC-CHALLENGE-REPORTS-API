@@ -158,9 +158,11 @@ EMAIL_TO_FINAL_SAMPLE_STAFF="student.certification@gov.bc.ca"
 if [ "$envValue" = "dev" ]
 then
   EMAIL_TO_PRELIMINARY_SAMPLE_STAFF="marco.1.villeneuve@gov.bc.ca"
+  EMAIL_TO_FINAL_SAMPLE_STAFF="marco.1.villeneuve@gov.bc.ca"
 elif [ "$envValue" = "test" ]
 then
   EMAIL_TO_PRELIMINARY_SAMPLE_STAFF="marco.1.villeneuve@gov.bc.ca"
+  EMAIL_TO_FINAL_SAMPLE_STAFF="marco.1.villeneuve@gov.bc.ca"
 fi
 
 echo

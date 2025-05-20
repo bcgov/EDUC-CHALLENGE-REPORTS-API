@@ -66,7 +66,7 @@ public class EmailService {
               .fromEmail(from)
               .toEmails(Collections.singletonList(to))
               .subject(subject)
-              .templateName("email.template.preliminary.sample.staff")
+              .templateName("preliminary.sample.staff")
               .emailFields(Map.of(
                       "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
                       "schoolYear", getBlankValueIfRequired(activeSession.getChallengeReportsPeriod().getSchoolYear()),
@@ -84,7 +84,7 @@ public class EmailService {
               .fromEmail(from)
               .toEmails(Collections.singletonList(to))
               .subject(subject)
-              .templateName("email.template.final.sample.staff")
+              .templateName("final.sample.staff")
               .emailFields(Map.of(
                       "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
                       "schoolYear", getBlankValueIfRequired(activeSession.getChallengeReportsPeriod().getSchoolYear()),
