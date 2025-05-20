@@ -1,5 +1,6 @@
 package ca.bc.gov.educ.challenge.reports.api.controller.v1;
 
+import ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus;
 import ca.bc.gov.educ.challenge.reports.api.constants.v1.SagaEnum;
 import ca.bc.gov.educ.challenge.reports.api.endpoint.v1.ChallengeReportsAPIEndpoint;
 import ca.bc.gov.educ.challenge.reports.api.exception.ChallengeReportsAPIRuntimeException;
@@ -17,15 +18,14 @@ import ca.bc.gov.educ.challenge.reports.api.validator.ChallengeReportsSessionVal
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.EnumUtils;
 import org.hibernate.validator.constraints.Email;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.NOT_STARTED;
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.PRELIM;
@@ -39,15 +39,17 @@ public class ChallengeReportsAPIController implements ChallengeReportsAPIEndpoin
 
     private final CSVReportService csvReportService;
     private final ChallengeReportsService challengeReportsService;
+    private final EmailService emailService;
     private final ChallengeReportsSessionValidator challengeReportsSessionValidator;
     private final ChallengeReportSessionMapper challengeReportSessionMapper = ChallengeReportSessionMapper.mapper;
     private final Map<String, Orchestrator> orchestratorMap = new HashMap<>();
     private static final SagaDataMapper sagaDataMapper = SagaDataMapper.mapper;
 
-    public ChallengeReportsAPIController(CSVReportService csvReportService, ChallengeReportsService challengeReportsService, ChallengeReportsSessionValidator challengeReportsSessionValidator, List<Orchestrator> orchestrators) {
+    public ChallengeReportsAPIController(CSVReportService csvReportService, ChallengeReportsService challengeReportsService, ChallengeReportsSessionValidator challengeReportsSessionValidator, List<Orchestrator> orchestrators, EmailService emailService) {
         this.csvReportService = csvReportService;
         this.challengeReportsService = challengeReportsService;
         this.challengeReportsSessionValidator = challengeReportsSessionValidator;
+        this.emailService = emailService;
         orchestrators.forEach(orchestrator -> this.orchestratorMap.put(orchestrator.getSagaName(), orchestrator));
         log.info("'{}' Saga Orchestrators are loaded.", String.join(",", this.orchestratorMap.keySet()));
     }
@@ -71,13 +73,13 @@ public class ChallengeReportsAPIController implements ChallengeReportsAPIEndpoin
 
     @Override
     public ResponseEntity<String> generateAndSendSampleEmail(String currentStage) {
-        EmailData emailData = new EmailData();
-        if(currentStage.equalsIgnoreCase(NOT_STARTED.toString()) || currentStage.equalsIgnoreCase(PRELIM.toString())){
-            //           send prelim stage email
-        }else{
-            //           send final stage email
-        }
+        final List<FieldError> apiValidationErrors = new ArrayList<>();
 
+        if (!EnumUtils.isValidEnum(ChallengeReportsStatus.class, currentStage)) {
+            apiValidationErrors.add(ValidationUtil.createFieldError("currentStage", "currentStage", currentStage, "Invalid challenge reports status provided."));
+        }
+        ValidationUtil.validatePayload(apiValidationErrors);
+        emailService.sendSampleEmailToStaff(currentStage);
         return ResponseEntity.status(HttpStatus.CREATED).body("Email sent successfully.");
     }
 

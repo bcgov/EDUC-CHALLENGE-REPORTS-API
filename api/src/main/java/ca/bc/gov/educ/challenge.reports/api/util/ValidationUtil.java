@@ -28,4 +28,12 @@ public class ValidationUtil {
       throw new InvalidPayloadException(error);
     }
   }
+
+  public static void validatePayload(List<FieldError> validationErrors) {
+    if (!validationErrors.isEmpty()) {
+      ApiError error = ApiError.builder().timestamp(LocalDateTime.now()).message("Payload contains invalid data.").status(BAD_REQUEST).build();
+      error.addValidationErrors(validationErrors);
+      throw new InvalidPayloadException(error);
+    }
+  }
 }
