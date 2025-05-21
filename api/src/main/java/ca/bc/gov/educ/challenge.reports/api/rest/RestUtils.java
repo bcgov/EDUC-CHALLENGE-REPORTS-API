@@ -14,6 +14,7 @@ import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.edx.v1.EdxUser;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.gradstudent.v1.StudentCoursePagination;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.District;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.SchoolTombstone;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.Collection;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.studentapi.v1.Student;
 import ca.bc.gov.educ.challenge.reports.api.util.JsonUtil;
@@ -34,11 +35,10 @@ import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.Collection;
 import reactor.core.publisher.Mono;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -270,6 +270,16 @@ public class RestUtils {
     return users != null ? users : new ArrayList<>();
   }
 
+  public List<EdxUser> getAllEdxDistrictUsers() {
+    if (this.edxDistrictUserMap.isEmpty()) {
+      log.info("EDX users district map is empty reloading schools");
+      this.populateEdxUsersMap();
+    }
+    return this.edxDistrictUserMap.values().stream()
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList());
+  }
+
   public List<StudentCoursePagination> getChallengeReportGradStudentCoursesForYear(List<String> courseSessions) throws JsonProcessingException {
     int pageSize = 5000;
     int pageNumber = 0;
@@ -391,8 +401,8 @@ public class RestUtils {
     }
   }
 
-  public void sendEmail(final String fromEmail, final List<String> toEmail, final String body, final String subject) {
-    this.sendEmail(this.getChesEmail(fromEmail, toEmail, body, subject));
+  public void sendEmail(final String fromEmail, final List<String> toEmail, final List<String> bccEmail, final String body, final String subject) {
+    this.sendEmail(this.getChesEmail(fromEmail, toEmail, bccEmail, body, subject));
   }
 
   private void sendEmail(final CHESEmail chesEmail) {
@@ -408,7 +418,7 @@ public class RestUtils {
             .block();
   }
 
-  public CHESEmail getChesEmail(final String fromEmail, final List<String> toEmail, final String body, final String subject) {
+  public CHESEmail getChesEmail(final String fromEmail, final List<String> toEmail, final List<String> bccEmail, final String body, final String subject) {
     final CHESEmail chesEmail = new CHESEmail();
     chesEmail.setBody(body);
     chesEmail.setBodyType("html");
@@ -419,6 +429,7 @@ public class RestUtils {
     chesEmail.setSubject(subject);
     chesEmail.setTag("tag");
     chesEmail.getTo().addAll(toEmail);
+    chesEmail.getBcc().addAll(bccEmail);
     return chesEmail;
   }
 

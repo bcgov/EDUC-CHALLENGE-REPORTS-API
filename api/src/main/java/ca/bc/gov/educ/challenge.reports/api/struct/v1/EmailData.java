@@ -18,6 +18,7 @@ public class EmailData {
   private static final long serialVersionUID = -2329245910142215178L;
   private String fromEmail;
   private List<String> toEmails;
+  private List<String> bccEmails;
   private String subject;
   private String templateName;
   private Map<String, String> emailFields;

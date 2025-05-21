@@ -14,8 +14,7 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.time.Year;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.Map;
+import java.util.*;
 
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.NOT_STARTED;
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.PRELIM;
@@ -24,99 +23,168 @@ import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReports
 @Slf4j
 public class EmailService {
 
-  private final SpringTemplateEngine templateEngine;
-  private final Map<String, String> templateConfig;
-  private final RestUtils restUtils;
-  private final EmailProperties emailProperties;
-  private final ChallengeReportsService challengeReportsService;
+    private final SpringTemplateEngine templateEngine;
+    private final Map<String, String> templateConfig;
+    private final RestUtils restUtils;
+    private final EmailProperties emailProperties;
+    private final ChallengeReportsService challengeReportsService;
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
-  public EmailService(final SpringTemplateEngine templateEngine, final Map<String, String> templateConfig, RestUtils restUtils, EmailProperties emailProperties, ChallengeReportsService challengeReportsService) {
-    this.templateEngine = templateEngine;
-    this.templateConfig = templateConfig;
-    this.restUtils = restUtils;
-    this.emailProperties = emailProperties;
-    this.challengeReportsService = challengeReportsService;
-  }
-
-  public void sendEmail(final EmailData emailData) {
-    log.debug("Sending email");
-
-    final var ctx = new Context();
-    emailData.getEmailFields().forEach(ctx::setVariable);
-
-    if (!this.templateConfig.containsKey(emailData.getTemplateName())) {
-      throw new ChallengeReportsAPIRuntimeException("Email template not found for template name :: " + emailData.getTemplateName());
+    public EmailService(final SpringTemplateEngine templateEngine, final Map<String, String> templateConfig, RestUtils restUtils, EmailProperties emailProperties, ChallengeReportsService challengeReportsService) {
+        this.templateEngine = templateEngine;
+        this.templateConfig = templateConfig;
+        this.restUtils = restUtils;
+        this.emailProperties = emailProperties;
+        this.challengeReportsService = challengeReportsService;
     }
 
-    final var body = this.templateEngine.process(this.templateConfig.get(emailData.getTemplateName()), ctx);
+    public void sendEmail(final EmailData emailData) {
+        log.debug("Sending email");
 
-    this.restUtils.sendEmail(emailData.getFromEmail(), emailData.getToEmails(), body, emailData.getSubject());
-    log.debug("Email sent successfully");
-  }
+        final var ctx = new Context();
+        emailData.getEmailFields().forEach(ctx::setVariable);
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void sendSampleEmailToStaff(String currentStage) {
-    EmailData emailNotification;
-    var activeSession = challengeReportsService.getChallengeReportActiveSession();
-    if(currentStage.equalsIgnoreCase(NOT_STARTED.toString()) || currentStage.equalsIgnoreCase(PRELIM.toString())){
-      final var subject = emailProperties.getEmailSubjectPreliminarySampleStaff();
-      final var from = emailProperties.getEmailFromPreliminarySampleStaff();
-      final var to = emailProperties.getEmailToPreliminarySampleStaff();
+        if (!this.templateConfig.containsKey(emailData.getTemplateName())) {
+            throw new ChallengeReportsAPIRuntimeException("Email template not found for template name :: " + emailData.getTemplateName());
+        }
 
-      emailNotification = EmailData.builder()
-              .fromEmail(from)
-              .toEmails(Collections.singletonList(to))
-              .subject(subject)
-              .templateName("preliminary.sample.staff")
-              .emailFields(Map.of(
-                      "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
-                      "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
-                      "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(DateTimeFormatter.ISO_LOCAL_DATE) : "",
-                      "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
-                      "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName())
-              ))
-              .build();
-    }else{
-      final var subject = emailProperties.getEmailSubjectFinalSampleStaff();
-      final var from = emailProperties.getEmailFromFinalSampleStaff();
-      final var to = emailProperties.getEmailToFinalSampleStaff();
+        final var body = this.templateEngine.process(this.templateConfig.get(emailData.getTemplateName()), ctx);
 
-      emailNotification = EmailData.builder()
-              .fromEmail(from)
-              .toEmails(Collections.singletonList(to))
-              .subject(subject)
-              .templateName("final.sample.staff")
-              .emailFields(Map.of(
-                      "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
-                      "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
-                      "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(DateTimeFormatter.ISO_LOCAL_DATE) : "",
-                      "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
-                      "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName()),
-                      "preliminaryStageCompletionDate", activeSession.getPreliminaryStageCompletionDate() != null ? activeSession.getPreliminaryStageCompletionDate().format(DateTimeFormatter.ISO_LOCAL_DATE) : ""
-              ))
-              .build();
+        this.restUtils.sendEmail(emailData.getFromEmail(), emailData.getToEmails(), emailData.getBccEmails(), body, emailData.getSubject());
+        log.debug("Email sent successfully");
     }
 
-    sendEmail(emailNotification);
-  }
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void sendSampleEmailToStaff(String currentStage) {
+        EmailData emailNotification;
+        var activeSession = challengeReportsService.getChallengeReportActiveSession();
+        if (currentStage.equalsIgnoreCase(NOT_STARTED.toString()) || currentStage.equalsIgnoreCase(PRELIM.toString())) {
+            final var subject = emailProperties.getEmailSubjectPreliminarySampleStaff();
+            final var from = emailProperties.getEmailFromPreliminarySampleStaff();
+            final var to = emailProperties.getEmailToPreliminarySampleStaff();
 
-  private String getBlankValueIfRequired(String s){
-    if(StringUtils.isBlank(s)){
-      return "";
+            emailNotification = EmailData.builder()
+                    .fromEmail(from)
+                    .toEmails(Collections.singletonList(to))
+                    .subject(subject)
+                    .templateName("preliminary.sample.staff")
+                    .emailFields(Map.of(
+                            "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
+                            "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
+                            "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : "",
+                            "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
+                            "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName())
+                    ))
+                    .build();
+        } else {
+            final var subject = emailProperties.getEmailSubjectFinalSampleStaff();
+            final var from = emailProperties.getEmailFromFinalSampleStaff();
+            final var to = emailProperties.getEmailToFinalSampleStaff();
+
+            emailNotification = EmailData.builder()
+                    .fromEmail(from)
+                    .toEmails(Collections.singletonList(to))
+                    .subject(subject)
+                    .templateName("final.sample.staff")
+                    .emailFields(Map.of(
+                            "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
+                            "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
+                            "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : "",
+                            "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
+                            "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName()),
+                            "preliminaryStageCompletionDate", activeSession.getPreliminaryStageCompletionDate() != null ? activeSession.getPreliminaryStageCompletionDate().format(formatter) : ""
+                    ))
+                    .build();
+        }
+
+        sendEmail(emailNotification);
     }
 
-    return s;
-  }
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void sendPreliminaryEmailToSupers() {
+        EmailData emailNotification;
+        var activeSession = challengeReportsService.getChallengeReportActiveSession();
+        final var subject = emailProperties.getEmailSubjectPreliminaryToSuper();
+        final var from = emailProperties.getEmailFromPreliminaryToSuper();
+        final var to = emailProperties.getEmailToPreliminaryToSuper();
+        var toEmails = getSuperintendentEmailAddressesForAllDistricts();
 
-  private String getYearWithNextValue(String schoolYear){
-    if(StringUtils.isBlank(schoolYear)){
-      return "";
+        emailNotification = EmailData.builder()
+                .fromEmail(from)
+                .toEmails(Collections.singletonList(to))
+                .bccEmails(toEmails)
+                .subject(subject)
+                .templateName("preliminary.to.super")
+                .emailFields(Map.of(
+                        "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
+                        "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
+                        "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : "",
+                        "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
+                        "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName())
+                ))
+                .build();
+
+        sendEmail(emailNotification);
     }
 
-    var year = Year.of(Integer.parseInt(schoolYear));
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void sendFinalEmailToSupers() {
+        EmailData emailNotification;
+        var activeSession = challengeReportsService.getChallengeReportActiveSession();
+        final var subject = emailProperties.getEmailSubjectFinalToSuper();
+        final var from = emailProperties.getEmailFromFinalToSuper();
+        final var to = emailProperties.getEmailToFinalToSuper();
+        var toEmails = getSuperintendentEmailAddressesForAllDistricts();
 
-    return schoolYear + "/" + year.plusYears(1);
-  }
+        emailNotification = EmailData.builder()
+                .fromEmail(from)
+                .toEmails(Collections.singletonList(to))
+                .bccEmails(toEmails)
+                .subject(subject)
+                .templateName("final.to.super")
+                .emailFields(Map.of(
+                        "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
+                        "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
+                        "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : "",
+                        "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
+                        "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName()),
+                        "preliminaryStageCompletionDate", activeSession.getPreliminaryStageCompletionDate() != null ? activeSession.getPreliminaryStageCompletionDate().format(formatter) : ""
+                ))
+                .build();
+
+        sendEmail(emailNotification);
+    }
+
+    public List<String> getSuperintendentEmailAddressesForAllDistricts(){
+        var allDistrictUsers = restUtils.getAllEdxDistrictUsers();
+        final List<String> emailSet = new ArrayList<>();
+        allDistrictUsers.forEach(user ->
+                user.getEdxUserDistricts().forEach(district ->
+                        district.getEdxUserDistrictRoles().forEach(role -> {
+                            if (Objects.equals(role.getEdxRoleCode(), "SUPERINT")) {
+                                emailSet.add(user.getEmail());
+                            }
+                        })));
+        return emailSet;
+    }
+
+    private String getBlankValueIfRequired(String s) {
+        if (StringUtils.isBlank(s)) {
+            return "";
+        }
+
+        return s;
+    }
+
+    private String getYearWithNextValue(String schoolYear) {
+        if (StringUtils.isBlank(schoolYear)) {
+            return "";
+        }
+
+        var year = Year.of(Integer.parseInt(schoolYear));
+
+        return schoolYear + "/" + year.plusYears(1);
+    }
 
 
 }

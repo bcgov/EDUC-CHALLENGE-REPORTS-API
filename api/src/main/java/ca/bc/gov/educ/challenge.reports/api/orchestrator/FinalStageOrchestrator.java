@@ -12,7 +12,6 @@ import ca.bc.gov.educ.challenge.reports.api.service.v1.EmailService;
 import ca.bc.gov.educ.challenge.reports.api.service.v1.SagaService;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.Event;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.FinalStageSagaData;
-import ca.bc.gov.educ.challenge.reports.api.struct.v1.PreliminaryStageSagaData;
 import ca.bc.gov.educ.challenge.reports.api.util.JsonUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +44,6 @@ public class FinalStageOrchestrator extends BaseOrchestrator<FinalStageSagaData>
                 .end(SEND_OUT_FINAL_EMAIL, FINAL_EMAIL_SENT);
     }
 
-
     public void fetchAndStoreFinalSetOfStudents(final Event event, final ChallengeReportsSagaEntity saga, final FinalStageSagaData sagaData) throws JsonProcessingException {
         final ChallengeReportsSagaEventEntity eventStates = this.createEventState(saga, event.getEventType(), event.getEventOutcome(), event.getEventPayload());
         saga.setSagaState(FETCH_AND_STORE_STUDENTS.toString());
@@ -65,8 +63,7 @@ public class FinalStageOrchestrator extends BaseOrchestrator<FinalStageSagaData>
         saga.setStatus(IN_PROGRESS.toString());
         this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
 
-        //Change me
-        //emailService.sendEmail(null);
+        emailService.sendFinalEmailToSupers();
 
         postEvent(saga, sagaData, SEND_OUT_FINAL_EMAIL, FINAL_EMAIL_SENT);
     }
@@ -77,7 +74,6 @@ public class FinalStageOrchestrator extends BaseOrchestrator<FinalStageSagaData>
         saga.setStatus(IN_PROGRESS.toString());
         this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
 
-        //service call
         challengeReportsService.updateChallengeReportsStatus(ChallengeReportsStatus.FINALIZED, sagaData.getUpdateUser());
 
         postEvent(saga, sagaData, UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED);

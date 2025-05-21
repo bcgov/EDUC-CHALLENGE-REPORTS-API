@@ -1,6 +1,5 @@
 package ca.bc.gov.educ.challenge.reports.api.orchestrator;
 
-
 import ca.bc.gov.educ.challenge.reports.api.constants.v1.*;
 import ca.bc.gov.educ.challenge.reports.api.messaging.MessagePublisher;
 import ca.bc.gov.educ.challenge.reports.api.messaging.jetstream.Publisher;
@@ -16,6 +15,7 @@ import ca.bc.gov.educ.challenge.reports.api.util.JsonUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.EventOutcome.PRELIMINARY_EMAIL_SENT;
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.EventOutcome.SESSION_STATUS_UPDATED;
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.EventType.SEND_OUT_PRELIMINARY_EMAIL;
@@ -50,8 +50,7 @@ public class PreliminaryStageOrchestrator extends BaseOrchestrator<PreliminarySt
         saga.setStatus(IN_PROGRESS.toString());
         this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
 
-        //Change me
-        //emailService.sendEmail(null);
+        emailService.sendPreliminaryEmailToSupers();
 
         postEvent(saga, sagaData, SEND_OUT_PRELIMINARY_EMAIL, PRELIMINARY_EMAIL_SENT);
     }
@@ -62,7 +61,6 @@ public class PreliminaryStageOrchestrator extends BaseOrchestrator<PreliminarySt
         saga.setStatus(IN_PROGRESS.toString());
         this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
 
-        //service call
         challengeReportsService.updateChallengeReportsStatus(ChallengeReportsStatus.PRELIM, sagaData.getUpdateUser());
 
         postEvent(saga, sagaData, UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED);

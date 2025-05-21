@@ -18,9 +18,17 @@ public class CHESEmail {
   private String subject;
   private String priority;
   private List<String> to;
+  private List<String> bcc;
   private String tag;
 
   public List<String> getTo() {
+    if (this.to == null) {
+      this.to = new ArrayList<>();
+    }
+    return this.to;
+  }
+
+  public List<String> getBcc() {
     if (this.to == null) {
       this.to = new ArrayList<>();
     }
