@@ -10,7 +10,6 @@ import ca.bc.gov.educ.challenge.reports.api.service.v1.SagaService;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.Event;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.NotificationEvent;
 import ca.bc.gov.educ.challenge.reports.api.util.JsonUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;

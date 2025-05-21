@@ -2,9 +2,6 @@ package ca.bc.gov.educ.challenge.reports.api.constants.v1;
 
 import lombok.Getter;
 
-import java.util.Arrays;
-import java.util.Optional;
-
 @Getter
 public enum ChallengeReportTypeCode {
     DISTRICT_REPORT("DISTRICT_REPORT");

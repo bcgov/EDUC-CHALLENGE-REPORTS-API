@@ -1,7 +1,6 @@
 package ca.bc.gov.educ.challenge.reports.api.orchestrator.base;
 
 import ca.bc.gov.educ.challenge.reports.api.model.v1.ChallengeReportsSagaEntity;
-import jakarta.validation.constraints.NotNull;
 
 import java.io.IOException;
 import java.util.UUID;

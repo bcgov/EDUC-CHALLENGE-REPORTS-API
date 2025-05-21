@@ -9,14 +9,15 @@ import ca.bc.gov.educ.challenge.reports.api.repository.v1.ChallengeReportsPosted
 import ca.bc.gov.educ.challenge.reports.api.repository.v1.ChallengeReportsSessionRepository;
 import ca.bc.gov.educ.challenge.reports.api.rest.RestUtils;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.ChallengeReportsStudentRecord;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.HasChallengeReportsStudentsResponse;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.coreg.v1.CourseCode;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.gradstudent.v1.StudentCoursePagination;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.SchoolTombstone;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
-import ca.bc.gov.educ.challenge.reports.api.util.RequestUtil;
 import ca.bc.gov.educ.challenge.reports.api.util.TransformUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -27,7 +28,6 @@ import java.time.Year;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.NOT_STARTED;
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.PRELIM;
 
 @RequiredArgsConstructor
@@ -153,6 +153,45 @@ public class ChallengeReportsService {
         return fullStudentList;
     }
 
+    public HasChallengeReportsStudentsResponse getHasChallengeReportStudents(String districtID) throws JsonProcessingException {
+        var currentReportingPeriod = challengeReportsSessionRepository.findActiveReportingPeriodSession().orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "reportingPeriodSession", null));
+
+        var finalStudentDistrictList = new ArrayList<ChallengeReportsStudentRecord>();
+        var currentStage = currentReportingPeriod.getChallengeReportsStatusCode();
+        ByteArrayOutputStream byteArrayOutputStream;
+
+        if (currentStage.equalsIgnoreCase(ChallengeReportsStatus.PRELIM.toString())) {
+            var fullStudentList = getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod);
+            fullStudentList.forEach(student -> {
+                if(student.getDistrictID().toString().equalsIgnoreCase(districtID)) {
+                    finalStudentDistrictList.add(student);
+                }
+            });
+        } else {
+            var postedStudents = challengeReportsPostedStudentRepository.findAllByChallengeReportsSessionEntity_ChallengeReportsSessionID(currentReportingPeriod.getChallengeReportsSessionID());
+            postedStudents.forEach(student -> {
+                var studentRecord = new ChallengeReportsStudentRecord();
+
+                if(student.getDistrictID().toString().equalsIgnoreCase(districtID)) {
+                    studentRecord.setSchoolID(student.getSchoolID());
+                    studentRecord.setDistrictID(student.getDistrictID());
+                    studentRecord.setStudentID(student.getStudentID());
+                    studentRecord.setPen(student.getPen());
+                    studentRecord.setCourseSession(student.getCourseSession());
+                    studentRecord.setCourseCodeAndLevel(student.getCourseCodeAndLevel());
+                    studentRecord.setStudentSurname(student.getStudentSurname());
+                    studentRecord.setStudentGivenName(student.getStudentGivenName());
+                    studentRecord.setStudentMiddleNames(student.getStudentMiddleNames());
+                    finalStudentDistrictList.add(studentRecord);
+                }
+            });
+        }
+
+        var response = new HasChallengeReportsStudentsResponse();
+        response.setDistrictID(districtID);
+        response.setHasChallengeReportStudents(finalStudentDistrictList.isEmpty() ? "false" : "true");
+        return response;
+    }
 
     private List<String> getCourseSessionValues(String year){
         Year previousYear = Year.of(Integer.parseInt(year)).minusYears(1);

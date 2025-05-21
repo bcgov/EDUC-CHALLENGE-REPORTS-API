@@ -16,10 +16,8 @@ import ca.bc.gov.educ.challenge.reports.api.util.RequestUtil;
 import ca.bc.gov.educ.challenge.reports.api.util.ValidationUtil;
 import ca.bc.gov.educ.challenge.reports.api.validator.ChallengeReportsSessionValidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.EnumUtils;
-import org.hibernate.validator.constraints.Email;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -27,11 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.*;
 
-import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.NOT_STARTED;
-import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.PRELIM;
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.SagaEnum.FINAL_STAGE_SAGA;
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.SagaEnum.PRELIMINARY_STAGE_SAGA;
-import static lombok.AccessLevel.PRIVATE;
 
 @RestController
 @Slf4j
@@ -57,6 +52,11 @@ public class ChallengeReportsAPIController implements ChallengeReportsAPIEndpoin
     @Override
     public DownloadableReportResponse getDownloadableChallengeReport(UUID districtID) throws JsonProcessingException {
         return csvReportService.generateChallengeReportForThisYear(districtID.toString());
+    }
+
+    @Override
+    public HasChallengeReportsStudentsResponse getHasChallengeReportStudents(UUID districtID) throws JsonProcessingException {
+        return challengeReportsService.getHasChallengeReportStudents(districtID.toString());
     }
 
     @Override
