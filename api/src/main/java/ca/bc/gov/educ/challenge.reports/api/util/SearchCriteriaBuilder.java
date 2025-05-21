@@ -1,5 +1,7 @@
 package ca.bc.gov.educ.challenge.reports.api.util;
 
+import org.checkerframework.checker.units.qual.A;
+
 import java.util.*;
 
 public class SearchCriteriaBuilder {
@@ -8,35 +10,24 @@ public class SearchCriteriaBuilder {
     public static List<Map<String, Object>> septemberCollectionsFromLastYear(String processingYear) {
         List<Map<String, Object>> searchCriteriaList = new ArrayList<>();
 
-        // Get the last year (e.g., 2024)
-        //int lastYear = java.time.Year.now().getValue() - 1;
-
-        // First search criteria for collectionTypeCode (SEPTEMBER)
         Map<String, Object> collectionTypeCodeCriteria = new HashMap<>();
         collectionTypeCodeCriteria.put("key", "collectionTypeCode");
         collectionTypeCodeCriteria.put("value", "SEPTEMBER");
         collectionTypeCodeCriteria.put("operation", "eq");
         collectionTypeCodeCriteria.put("valueType", "STRING");
 
-        // Wrap it with a condition (null for the first group)
-        Map<String, Object> wrapper1 = new HashMap<>();
-        wrapper1.put("condition", null);  // No condition for the first group
-        wrapper1.put("searchCriteriaList", List.of(collectionTypeCodeCriteria));
-        searchCriteriaList.add(wrapper1);
-
-        // Second search criteria for openDate (>= 2024-01-01)
         Map<String, Object> openDateCriteria = new HashMap<>();
         openDateCriteria.put("key", "openDate");
-        openDateCriteria.put("value", processingYear + "-01-01");  // Start of last year
-        openDateCriteria.put("operation", "gte");
+        openDateCriteria.put("value", processingYear + "-01-01," + processingYear + "-12-31");  // Start of last year
+        openDateCriteria.put("operation", "btn");
         openDateCriteria.put("valueType", "DATE");
         openDateCriteria.put("condition", "AND");  // Adding condition for this item
 
         // Wrap it with a condition (AND for the second group)
-        Map<String, Object> wrapper2 = new HashMap<>();
-        wrapper2.put("condition", "AND");  // AND between conditions
-        wrapper2.put("searchCriteriaList", List.of(openDateCriteria));
-        searchCriteriaList.add(wrapper2);
+        Map<String, Object> wrapper = new HashMap<>();
+        wrapper.put("condition", "AND");  // AND between conditions
+        wrapper.put("searchCriteriaList", List.of(collectionTypeCodeCriteria, openDateCriteria));
+        searchCriteriaList.add(wrapper);
 
         // Return the entire list of search criteria
         return searchCriteriaList;
@@ -47,34 +38,29 @@ public class SearchCriteriaBuilder {
         List<Map<String, Object>> searchCriteriaList = new ArrayList<>();
 
         Map<String, Object> collectionIdCriteria = new HashMap<>();
-        collectionIdCriteria.put("key", "studentCoursePaginationEntities.courseSession");
+        collectionIdCriteria.put("key", "courseSession");
         collectionIdCriteria.put("value", String.join(",", courseSessions));
         collectionIdCriteria.put("operation", "in");
         collectionIdCriteria.put("valueType", "STRING");
 
-        Map<String, Object> wrapper1 = new HashMap<>();
-        wrapper1.put("condition", null);
-        wrapper1.put("searchCriteriaList", List.of(collectionIdCriteria));
-        searchCriteriaList.add(wrapper1);
-
         Map<String, Object> eqOrChallengeCrit = new HashMap<>();
-        eqOrChallengeCrit.put("key", "studentCoursePaginationEntities.equivOrChallenge");
+        eqOrChallengeCrit.put("key", "equivOrChallenge");
         eqOrChallengeCrit.put("operation", "eq");
         eqOrChallengeCrit.put("value", "C");
         eqOrChallengeCrit.put("valueType", "STRING");
         eqOrChallengeCrit.put("condition", "AND");
 
         Map<String, Object> finalPercentCrit = new HashMap<>();
-        eqOrChallengeCrit.put("key", "studentCoursePaginationEntities.completedCoursePercentage");
-        eqOrChallengeCrit.put("operation", "gt");
-        eqOrChallengeCrit.put("value", "49");
-        eqOrChallengeCrit.put("valueType", "INTEGER");
-        eqOrChallengeCrit.put("condition", "AND");
+        finalPercentCrit.put("key", "completedCoursePercentage");
+        finalPercentCrit.put("operation", "gt");
+        finalPercentCrit.put("value", "49");
+        finalPercentCrit.put("valueType", "INTEGER");
+        finalPercentCrit.put("condition", "AND");
 
-        Map<String, Object> wrapper2 = new HashMap<>();
-        wrapper2.put("condition", "AND"); // outer group condition
-        wrapper2.put("searchCriteriaList", List.of(eqOrChallengeCrit, finalPercentCrit));
-        searchCriteriaList.add(wrapper2);
+        Map<String, Object> wrapper = new HashMap<>();
+        wrapper.put("condition", "AND"); // outer group condition
+        wrapper.put("searchCriteriaList", List.of(collectionIdCriteria, eqOrChallengeCrit, finalPercentCrit));
+        searchCriteriaList.add(wrapper);
 
         return searchCriteriaList;
     }
@@ -89,23 +75,18 @@ public class SearchCriteriaBuilder {
         collectionIdCriteria.put("operation", "eq");
         collectionIdCriteria.put("valueType", "UUID");
 
-        Map<String, Object> wrapper1 = new HashMap<>();
-        wrapper1.put("condition", null); // first block has no outer condition
-        wrapper1.put("searchCriteriaList", List.of(collectionIdCriteria));
-        searchCriteriaList.add(wrapper1);
-
         // Second block: studentIDs (IN)
         Map<String, Object> pensCriteria = new HashMap<>();
-        pensCriteria.put("key", "assignedPen");
+        pensCriteria.put("key", "assignedStudentId");
         pensCriteria.put("operation", "in");
         pensCriteria.put("value", String.join(",", studentIDs));
-        pensCriteria.put("valueType", "STRING");
+        pensCriteria.put("valueType", "UUID");
         pensCriteria.put("condition", "AND"); // inside the group condition
 
-        Map<String, Object> wrapper2 = new HashMap<>();
-        wrapper2.put("condition", "AND"); // outer group condition
-        wrapper2.put("searchCriteriaList", List.of(pensCriteria));
-        searchCriteriaList.add(wrapper2);
+        Map<String, Object> wrapper = new HashMap<>();
+        wrapper.put("condition", "AND"); // outer group condition
+        wrapper.put("searchCriteriaList", List.of(collectionIdCriteria, pensCriteria));
+        searchCriteriaList.add(wrapper);
 
         return searchCriteriaList;
     }

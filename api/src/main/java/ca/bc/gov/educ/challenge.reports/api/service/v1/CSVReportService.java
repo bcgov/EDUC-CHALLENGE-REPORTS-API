@@ -8,13 +8,13 @@ import ca.bc.gov.educ.challenge.reports.api.constants.v1.SdcInvalidSchoolFunding
 import ca.bc.gov.educ.challenge.reports.api.exception.ChallengeReportsAPIRuntimeException;
 import ca.bc.gov.educ.challenge.reports.api.exception.EntityNotFoundException;
 import ca.bc.gov.educ.challenge.reports.api.model.v1.ChallengeReportsSessionEntity;
+import ca.bc.gov.educ.challenge.reports.api.repository.v1.ChallengeReportsPostedStudentRepository;
 import ca.bc.gov.educ.challenge.reports.api.repository.v1.ChallengeReportsSessionRepository;
 import ca.bc.gov.educ.challenge.reports.api.rest.RestUtils;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.ChallengeReportsStudentRecord;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.DownloadableReportResponse;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.coreg.v1.CourseCode;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.gradstudent.v1.StudentCoursePagination;
-import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.District;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.SchoolTombstone;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 public class CSVReportService {
 
     private final ChallengeReportsSessionRepository challengeReportsSessionRepository;
+    private final ChallengeReportsPostedStudentRepository challengeReportsPostedStudentRepository;
     private final RestUtils restUtils;
 
     public DownloadableReportResponse generateChallengeReportForThisYear(String districtID) throws JsonProcessingException {
@@ -48,6 +49,7 @@ public class CSVReportService {
         var schoolYear = currentReportingPeriod.getChallengeReportsPeriod().getSchoolYear();
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        var fullStudentList = new ArrayList<ChallengeReportsStudentRecord>();
 
         if(currentStage.equalsIgnoreCase(ChallengeReportsStatus.PRELIM.toString())){
             var gradStudents = restUtils.getChallengeReportGradStudentCoursesForYear(getCourseSessionValues(schoolYear));
@@ -62,7 +64,6 @@ public class CSVReportService {
             var sdcStudents = restUtils.get1701DataForStudents(collection.getCollectionID(), gradStudentsMap.keySet().stream().toList());
 
             var mapOfStudents = new HashMap<String, SdcSchoolCollectionStudent>();
-            var fullStudentList = new ArrayList<ChallengeReportsStudentRecord>();
             sdcStudents.forEach(sdcSchoolCollectionStudent -> {
                 var school = restUtils.getSchoolBySchoolID(sdcSchoolCollectionStudent.getSchoolID()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "school", sdcSchoolCollectionStudent.getSchoolID()));
                 if(Arrays.stream(SdcInvalidSchoolFundingCode.getSdcInvalidSchoolFundingCode()).noneMatch(val -> val.equals(sdcSchoolCollectionStudent.getSchoolFundingCode()))) {
@@ -109,11 +110,24 @@ public class CSVReportService {
                     });
                 }
             });
-            byteArrayOutputStream = generateChallengeReportCSVBytes(fullStudentList);
         }else{
+            var postedStudents = challengeReportsPostedStudentRepository.findAllByChallengeReportsSessionEntity_ChallengeReportsSessionID(currentReportingPeriod.getChallengeReportsSessionID());
+            postedStudents.forEach(student -> {
+                var studentRecord = new ChallengeReportsStudentRecord();
 
+                studentRecord.setSchoolID(student.getSchoolID());
+                studentRecord.setDistrictID(student.getDistrictID());
+                studentRecord.setStudentID(student.getStudentID());
+                studentRecord.setPen(student.getPen());
+                studentRecord.setCourseSession(student.getCourseSession());
+                studentRecord.setCourseCodeAndLevel(student.getCourseCodeAndLevel());
+                studentRecord.setStudentSurname(student.getStudentSurname());
+                studentRecord.setStudentGivenName(student.getStudentGivenName());
+                studentRecord.setStudentMiddleNames(student.getStudentMiddleNames());
+                fullStudentList.add(studentRecord);
+            });
         }
-
+        byteArrayOutputStream = generateChallengeReportCSVBytes(fullStudentList);
         var downloadableReport = new DownloadableReportResponse();
 
         downloadableReport.setReportType(ChallengeReportTypeCode.DISTRICT_REPORT.getCode());
@@ -160,14 +174,6 @@ public class CSVReportService {
                 student.getStudentGivenName(),
                 student.getStudentMiddleNames()
         ));
-    }
-
-    private String getCourseCodeValueFromExternalCode(String externalCode){
-        return externalCode.substring(0, 5);
-    }
-
-    private String getCourseLevelValueFromExternalCode(String externalCode){
-        return externalCode.substring(5);
     }
 
     private List<String> getCourseSessionValues(String year){

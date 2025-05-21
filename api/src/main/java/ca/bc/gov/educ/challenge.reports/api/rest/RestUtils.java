@@ -283,7 +283,6 @@ public class RestUtils {
             + "/grad/student/course/search/pagination"
             + "?pageNumber=" + pageNumber
             + "&pageSize=" + pageSize
-            + "&sort="
             + "&searchCriteriaList=" + encodedSearchJson;
 
     PaginatedResponse<StudentCoursePagination> response = webClient.get()

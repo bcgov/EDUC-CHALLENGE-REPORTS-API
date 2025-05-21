@@ -45,11 +45,8 @@ public class ChallengeReportsPostedStudentEntity {
   @Column(name = "COURSE_SESSION")
   private String courseSession;
 
-  @Column(name = "COURSE_CODE")
-  private String courseCode;
-
-  @Column(name = "COURSE_LEVEL")
-  private String courseLevel;
+  @Column(name = "COURSE_CODE_AND_LEVEL")
+  private String courseCodeAndLevel;
 
   @Column(name = "STUDENT_SURNAME")
   private String studentSurname;
