@@ -3,8 +3,8 @@ package ca.bc.gov.educ.challenge.reports.api.endpoint.v1;
 
 import ca.bc.gov.educ.challenge.reports.api.constants.v1.URL;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.ChallengeReportsSession;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.DistrictChallengeReportsCounts;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.DownloadableReportResponse;
-import ca.bc.gov.educ.challenge.reports.api.struct.v1.HasChallengeReportsStudentsResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -35,7 +35,7 @@ public interface ChallengeReportsAPIEndpoint {
   @PreAuthorize("hasAuthority('SCOPE_READ_CHALLENGE_REPORTS')")
   @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "OK"), @ApiResponse(responseCode = "400", description = "BAD REQUEST")})
-  HasChallengeReportsStudentsResponse getHasChallengeReportStudents(@PathVariable UUID districtID) throws JsonProcessingException;
+  DistrictChallengeReportsCounts getDistrictChallengeReportCounts(@PathVariable UUID districtID) throws JsonProcessingException;
 
   @GetMapping("/activeSession")
   @PreAuthorize("hasAuthority('SCOPE_READ_CHALLENGE_REPORTS')")

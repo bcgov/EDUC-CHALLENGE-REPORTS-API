@@ -12,11 +12,11 @@ import java.io.Serializable;
 @NoArgsConstructor
 @Builder
 @SuppressWarnings("squid:S1700")
-public class HasChallengeReportsStudentsResponse implements Serializable {
+public class SchoolChallengeReportsCount implements Serializable {
   private static final long serialVersionUID = 6118916290604876032L;
 
-  private String districtID;
+  private String schoolID;
 
-  private String hasChallengeReportStudents;
+  private String count;
 
 }

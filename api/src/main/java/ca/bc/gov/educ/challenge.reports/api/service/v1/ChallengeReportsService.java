@@ -9,7 +9,8 @@ import ca.bc.gov.educ.challenge.reports.api.repository.v1.ChallengeReportsPosted
 import ca.bc.gov.educ.challenge.reports.api.repository.v1.ChallengeReportsSessionRepository;
 import ca.bc.gov.educ.challenge.reports.api.rest.RestUtils;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.ChallengeReportsStudentRecord;
-import ca.bc.gov.educ.challenge.reports.api.struct.v1.HasChallengeReportsStudentsResponse;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.DistrictChallengeReportsCounts;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.SchoolChallengeReportsCount;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.coreg.v1.CourseCode;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.gradstudent.v1.StudentCoursePagination;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.SchoolTombstone;
@@ -153,7 +154,7 @@ public class ChallengeReportsService {
         return fullStudentList;
     }
 
-    public HasChallengeReportsStudentsResponse getHasChallengeReportStudents(String districtID) throws JsonProcessingException {
+    public DistrictChallengeReportsCounts getHasChallengeReportStudents(String districtID) throws JsonProcessingException {
         var currentReportingPeriod = challengeReportsSessionRepository.findActiveReportingPeriodSession().orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "reportingPeriodSession", null));
 
         var finalStudentDistrictList = new ArrayList<ChallengeReportsStudentRecord>();
@@ -187,9 +188,27 @@ public class ChallengeReportsService {
             });
         }
 
-        var response = new HasChallengeReportsStudentsResponse();
+        var response = new DistrictChallengeReportsCounts();
         response.setDistrictID(districtID);
-        response.setHasChallengeReportStudents(finalStudentDistrictList.isEmpty() ? "false" : "true");
+
+        var schoolCounts = new HashMap<UUID, Integer>();
+        finalStudentDistrictList.forEach(student -> {
+            if(schoolCounts.containsKey(student.getSchoolID())) {
+                schoolCounts.put(student.getSchoolID(), schoolCounts.get(student.getSchoolID()) + 1);
+            }else{
+                schoolCounts.put(student.getSchoolID(), 1);
+            }
+        });
+
+        var finalCounts = new ArrayList<SchoolChallengeReportsCount>();
+        schoolCounts.keySet().forEach(schoolID -> {
+            var schoolCount = new SchoolChallengeReportsCount();
+            schoolCount.setSchoolID(schoolID.toString());
+            schoolCount.setCount(schoolCounts.get(schoolID).toString());
+            finalCounts.add(schoolCount);
+        });
+
+        response.setSchoolsWithCounts(finalCounts);
         return response;
     }
 
