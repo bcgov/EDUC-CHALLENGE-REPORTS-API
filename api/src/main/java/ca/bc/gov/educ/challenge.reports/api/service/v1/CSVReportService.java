@@ -4,7 +4,6 @@ package ca.bc.gov.educ.challenge.reports.api.service.v1;
 import ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportTypeCode;
 import ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus;
 import ca.bc.gov.educ.challenge.reports.api.constants.v1.DistrictReportHeader;
-import ca.bc.gov.educ.challenge.reports.api.constants.v1.SdcInvalidSchoolFundingCode;
 import ca.bc.gov.educ.challenge.reports.api.exception.ChallengeReportsAPIRuntimeException;
 import ca.bc.gov.educ.challenge.reports.api.exception.EntityNotFoundException;
 import ca.bc.gov.educ.challenge.reports.api.model.v1.ChallengeReportsSessionEntity;
@@ -13,10 +12,7 @@ import ca.bc.gov.educ.challenge.reports.api.repository.v1.ChallengeReportsSessio
 import ca.bc.gov.educ.challenge.reports.api.rest.RestUtils;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.ChallengeReportsStudentRecord;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.DownloadableReportResponse;
-import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.coreg.v1.CourseCode;
-import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.gradstudent.v1.StudentCoursePagination;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.SchoolTombstone;
-import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,9 +24,10 @@ import org.springframework.stereotype.Service;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.time.Year;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.List;
 
 
 @Service
@@ -53,7 +50,7 @@ public class CSVReportService {
         if (currentStage.equalsIgnoreCase(ChallengeReportsStatus.PRELIM.toString())) {
             var fullStudentList = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod);
             fullStudentList.forEach(student -> {
-                if(student.getDistrictID() == UUID.fromString(districtID)) {
+                if(student.getDistrictID().toString().equalsIgnoreCase(districtID)) {
                     finalStudentDistrictList.add(student);
                 }
             });
@@ -62,7 +59,7 @@ public class CSVReportService {
             postedStudents.forEach(student -> {
                 var studentRecord = new ChallengeReportsStudentRecord();
 
-                if (student.getDistrictID() == UUID.fromString(districtID)) {
+                if(student.getDistrictID().toString().equalsIgnoreCase(districtID)) {
                     studentRecord.setSchoolID(student.getSchoolID());
                     studentRecord.setDistrictID(student.getDistrictID());
                     studentRecord.setStudentID(student.getStudentID());
