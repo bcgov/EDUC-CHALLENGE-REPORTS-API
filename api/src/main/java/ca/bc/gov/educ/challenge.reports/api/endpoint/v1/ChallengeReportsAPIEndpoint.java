@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.OK;
 
 @RequestMapping(URL.BASE_URL)
@@ -50,13 +49,6 @@ public interface ChallengeReportsAPIEndpoint {
   @Tag(name = "Challenge Reports Session", description = "Endpoints to update challenge reports session.")
   @Schema(name = "ChallengeReportsSession", implementation = ChallengeReportsSession.class)
   ChallengeReportsSession updateChallengeReportsSessionAttributes(@Validated @RequestBody ChallengeReportsSession challengeReportsSession, @PathVariable UUID challengeReportSessionID) throws JsonProcessingException;
-
-  @PostMapping("/email/{currentStage}")
-  @PreAuthorize("hasAuthority('SCOPE_WRITE_CHALLENGE_REPORTS')")
-  @Transactional(readOnly = true)
-  @ResponseStatus(CREATED)
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "OK"), @ApiResponse(responseCode = "400", description = "BAD REQUEST")})
-  ResponseEntity<String> generateAndSendSampleEmail(@PathVariable String currentStage);
 
   @PostMapping("/preliminaryStage/{updateUser}")
   @PreAuthorize("hasAuthority('SCOPE_WRITE_CHALLENGE_REPORTS')")

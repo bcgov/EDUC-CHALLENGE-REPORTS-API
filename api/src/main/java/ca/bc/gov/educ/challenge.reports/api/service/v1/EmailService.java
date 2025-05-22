@@ -16,9 +16,6 @@ import java.time.Year;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.NOT_STARTED;
-import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.PRELIM;
-
 @Service
 @Slf4j
 public class EmailService {
@@ -55,52 +52,6 @@ public class EmailService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void sendSampleEmailToStaff(String currentStage) {
-        EmailData emailNotification;
-        var activeSession = challengeReportsService.getChallengeReportActiveSession();
-        if (currentStage.equalsIgnoreCase(NOT_STARTED.toString()) || currentStage.equalsIgnoreCase(PRELIM.toString())) {
-            final var subject = emailProperties.getEmailSubjectPreliminarySampleStaff();
-            final var from = emailProperties.getEmailFromPreliminarySampleStaff();
-            final var to = emailProperties.getEmailToPreliminarySampleStaff();
-
-            emailNotification = EmailData.builder()
-                    .fromEmail(from)
-                    .toEmails(Collections.singletonList(to))
-                    .subject(subject)
-                    .templateName("preliminary.sample.staff")
-                    .emailFields(Map.of(
-                            "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
-                            "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
-                            "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : "",
-                            "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
-                            "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName())
-                    ))
-                    .build();
-        } else {
-            final var subject = emailProperties.getEmailSubjectFinalSampleStaff();
-            final var from = emailProperties.getEmailFromFinalSampleStaff();
-            final var to = emailProperties.getEmailToFinalSampleStaff();
-
-            emailNotification = EmailData.builder()
-                    .fromEmail(from)
-                    .toEmails(Collections.singletonList(to))
-                    .subject(subject)
-                    .templateName("final.sample.staff")
-                    .emailFields(Map.of(
-                            "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
-                            "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
-                            "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : "",
-                            "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
-                            "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName()),
-                            "preliminaryStageCompletionDate", activeSession.getPreliminaryStageCompletionDate() != null ? activeSession.getPreliminaryStageCompletionDate().format(formatter) : ""
-                    ))
-                    .build();
-        }
-
-        sendEmail(emailNotification);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void sendPreliminaryEmailToSupers() {
         EmailData emailNotification;
         var activeSession = challengeReportsService.getChallengeReportActiveSession();
@@ -118,9 +69,7 @@ public class EmailService {
                 .emailFields(Map.of(
                         "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
                         "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
-                        "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : "",
-                        "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
-                        "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName())
+                        "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : ""
                 ))
                 .build();
 
@@ -146,8 +95,6 @@ public class EmailService {
                         "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
                         "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
                         "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : "",
-                        "executiveDirectorName", getBlankValueIfRequired(activeSession.getExecutiveDirectorName()),
-                        "resourceManagementDirectorName", getBlankValueIfRequired(activeSession.getResourceManagementDirectorName()),
                         "preliminaryStageCompletionDate", activeSession.getPreliminaryStageCompletionDate() != null ? activeSession.getPreliminaryStageCompletionDate().format(formatter) : ""
                 ))
                 .build();

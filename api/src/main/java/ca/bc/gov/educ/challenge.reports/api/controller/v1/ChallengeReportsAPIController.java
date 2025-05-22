@@ -1,6 +1,5 @@
 package ca.bc.gov.educ.challenge.reports.api.controller.v1;
 
-import ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus;
 import ca.bc.gov.educ.challenge.reports.api.constants.v1.SagaEnum;
 import ca.bc.gov.educ.challenge.reports.api.endpoint.v1.ChallengeReportsAPIEndpoint;
 import ca.bc.gov.educ.challenge.reports.api.exception.ChallengeReportsAPIRuntimeException;
@@ -17,13 +16,14 @@ import ca.bc.gov.educ.challenge.reports.api.util.ValidationUtil;
 import ca.bc.gov.educ.challenge.reports.api.validator.ChallengeReportsSessionValidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.EnumUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.SagaEnum.FINAL_STAGE_SAGA;
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.SagaEnum.PRELIMINARY_STAGE_SAGA;
@@ -69,18 +69,6 @@ public class ChallengeReportsAPIController implements ChallengeReportsAPIEndpoin
         ValidationUtil.validatePayload(() -> this.challengeReportsSessionValidator.validatePayload(challengeReportsSession));
         RequestUtil.setAuditColumnsForUpdate(challengeReportsSession);
         return challengeReportSessionMapper.toStructure(challengeReportsService.updateChallengeReportsSessionAttributes(challengeReportSessionMapper.toModel(challengeReportsSession)));
-    }
-
-    @Override
-    public ResponseEntity<String> generateAndSendSampleEmail(String currentStage) {
-        final List<FieldError> apiValidationErrors = new ArrayList<>();
-
-        if (!EnumUtils.isValidEnum(ChallengeReportsStatus.class, currentStage)) {
-            apiValidationErrors.add(ValidationUtil.createFieldError("currentStage", "currentStage", currentStage, "Invalid challenge reports status provided."));
-        }
-        ValidationUtil.validatePayload(apiValidationErrors);
-        emailService.sendSampleEmailToStaff(currentStage);
-        return ResponseEntity.status(HttpStatus.CREATED).body("Email sent successfully.");
     }
 
     @Override
