@@ -35,4 +35,6 @@ public class ChallengeReportsSession extends BaseRequest{
     @NotNull(message = "resourceManagementDirectorName can not be null.")
     private String resourceManagementDirectorName;
 
+    private LocalDateTime finalStageCompletionDate;
+
 }
