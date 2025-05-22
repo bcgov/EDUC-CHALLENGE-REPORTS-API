@@ -15,6 +15,7 @@ import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.gradstudent.v1.St
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.District;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.SchoolTombstone;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.Collection;
+import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.IndependentSchoolFundingGroupSnapshot;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.studentapi.v1.Student;
 import ca.bc.gov.educ.challenge.reports.api.util.JsonUtil;
@@ -180,6 +181,17 @@ public class RestUtils {
             .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
             .retrieve()
             .bodyToFlux(CourseCode.class)
+            .collectList()
+            .block();
+  }
+
+  public List<IndependentSchoolFundingGroupSnapshot> getSchoolFundingGroupsForCollection(String collectionID) {
+    log.info("Calling SDC API to load funding groups to memory");
+    return this.webClient.get()
+            .uri(this.props.getSdcApiURL() + "/schoolFundingGroupSnapshot/all/" + collectionID)
+            .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+            .retrieve()
+            .bodyToFlux(IndependentSchoolFundingGroupSnapshot.class)
             .collectList()
             .block();
   }

@@ -154,7 +154,7 @@ public class ChallengeReportsService {
         return fullStudentList;
     }
 
-    public DistrictChallengeReportsCounts getHasChallengeReportStudents(String districtID) throws JsonProcessingException {
+    public DistrictChallengeReportsCounts getChallengeReportCountsForDistrict(String districtID) throws JsonProcessingException {
         var currentReportingPeriod = challengeReportsSessionRepository.findActiveReportingPeriodSession().orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "reportingPeriodSession", null));
 
         var finalStudentDistrictList = new ArrayList<ChallengeReportsStudentRecord>();

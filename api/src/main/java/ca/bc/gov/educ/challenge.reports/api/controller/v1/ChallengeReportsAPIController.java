@@ -56,7 +56,7 @@ public class ChallengeReportsAPIController implements ChallengeReportsAPIEndpoin
 
     @Override
     public DistrictChallengeReportsCounts getDistrictChallengeReportCounts(UUID districtID) throws JsonProcessingException {
-        return challengeReportsService.getHasChallengeReportStudents(districtID.toString());
+        return challengeReportsService.getChallengeReportCountsForDistrict(districtID.toString());
     }
 
     @Override
