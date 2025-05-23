@@ -17,7 +17,7 @@ public class EmailProperties {
   @Value("${email.to.preliminary.to.super}")
   private String emailToPreliminaryToSuper;
 
-  @Value("${email.subject.final.to.super")
+  @Value("${email.subject.final.to.super}")
   private String emailSubjectFinalToSuper;
 
   @Value("${email.from.final.to.super}")
