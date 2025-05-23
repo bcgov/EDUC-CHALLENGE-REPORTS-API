@@ -34,6 +34,32 @@ public class SearchCriteriaBuilder {
         return searchCriteriaList;
     }
 
+    // Method to create the search criteria for SEPTEMBER collections from last year
+    public static List<Map<String, Object>> februaryCollectionsFromLastYear(String processingYear) {
+        List<Map<String, Object>> searchCriteriaList = new ArrayList<>();
+
+        Map<String, Object> collectionTypeCodeCriteria = new HashMap<>();
+        collectionTypeCodeCriteria.put("key", "collectionTypeCode");
+        collectionTypeCodeCriteria.put("value", "FEBRUARY");
+        collectionTypeCodeCriteria.put("operation", "eq");
+        collectionTypeCodeCriteria.put("valueType", "STRING");
+
+        Map<String, Object> openDateCriteria = new HashMap<>();
+        openDateCriteria.put("key", "openDate");
+        openDateCriteria.put("value", processingYear + "-01-01," + processingYear + "-12-31");  // Start of last year
+        openDateCriteria.put("operation", "btn");
+        openDateCriteria.put("valueType", "DATE");
+        openDateCriteria.put("condition", "AND");  // Adding condition for this item
+
+        // Wrap it with a condition (AND for the second group)
+        Map<String, Object> wrapper = new HashMap<>();
+        wrapper.put("condition", "AND");  // AND between conditions
+        wrapper.put("searchCriteriaList", List.of(collectionTypeCodeCriteria, openDateCriteria));
+        searchCriteriaList.add(wrapper);
+
+        // Return the entire list of search criteria
+        return searchCriteriaList;
+    }
 
     public static List<Map<String, Object>> getChallengeReportGradCriteria(List<String> courseSessions) {
         List<Map<String, Object>> searchCriteriaList = new ArrayList<>();

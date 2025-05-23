@@ -273,6 +273,33 @@ public class RestUtils {
     }
   }
 
+  public PaginatedResponse<Collection> getLastFebruaryCollection(String processingYear) throws JsonProcessingException {
+    List<Map<String, Object>> searchCriteriaList = SearchCriteriaBuilder.februaryCollectionsFromLastYear(processingYear);
+    String searchJson = objectMapper.writeValueAsString(searchCriteriaList);
+    String encodedSearchJson = URLEncoder.encode(searchJson, StandardCharsets.UTF_8);
+
+    int pageNumber = 0;
+    int pageSize = 50;
+
+    try {
+      String fullUrl = this.props.getSdcApiURL()
+              + "/collection/paginated"
+              + "?pageNumber=" + pageNumber
+              + "&pageSize=" + pageSize
+              + "&searchCriteriaList=" + encodedSearchJson;
+      return webClient.get()
+              .uri(fullUrl)
+              .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+              .retrieve()
+              .bodyToMono(new ParameterizedTypeReference<PaginatedResponse<Collection>>() {
+              })
+              .block();
+    } catch (Exception ex) {
+      log.error("Error fetching schools on page {}", pageNumber, ex);
+      return null;
+    }
+  }
+
   public List<EdxUser> getEdxUsersForDistrict(final UUID districtID) {
     if (this.edxDistrictUserMap.isEmpty()) {
       log.info("EDX users district map is empty reloading schools");
@@ -441,7 +468,9 @@ public class RestUtils {
     chesEmail.setSubject(subject);
     chesEmail.setTag("tag");
     chesEmail.getTo().addAll(toEmail);
-    chesEmail.getBcc().addAll(bccEmail);
+    if(bccEmail != null && !bccEmail.isEmpty()) {
+      chesEmail.getBcc().addAll(bccEmail);
+    }
     return chesEmail;
   }
 
