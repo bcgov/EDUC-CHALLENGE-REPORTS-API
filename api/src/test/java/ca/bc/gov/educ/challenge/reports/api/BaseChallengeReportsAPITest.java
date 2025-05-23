@@ -27,7 +27,7 @@ public abstract class BaseChallengeReportsAPITest {
 
   }
 
-  public ChallengeReportStatusCodeEntity createCitizenshipCodeEntity() {
+  public ChallengeReportStatusCodeEntity createChallengeReportStatusCodeEntity() {
     return ChallengeReportStatusCodeEntity.builder()
             .challengeReportStatusCode("PRELIM")
             .label("Preliminary Stage")

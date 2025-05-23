@@ -33,7 +33,7 @@ class CodeTableControllerTest extends BaseChallengeReportsAPITest {
   @BeforeEach
   public void setUp() {
     MockitoAnnotations.openMocks(this);
-    challengeReportStatusCodeRepository.save(createCitizenshipCodeEntity());
+    challengeReportStatusCodeRepository.save(createChallengeReportStatusCodeEntity());
   }
 
   @AfterEach
@@ -44,7 +44,7 @@ class CodeTableControllerTest extends BaseChallengeReportsAPITest {
   protected static final ObjectMapper objectMapper = JsonMapper.builder().addModule(new JavaTimeModule()).build();
 
   @Test
-  void testGetAllCitizenshipCodes_ShouldReturnCodes() throws Exception {
+  void testGetAllChallengeReportStatusCodes_ShouldReturnCodes() throws Exception {
     final GrantedAuthority grantedAuthority = () -> "SCOPE_READ_CHALLENGE_REPORTS_CODES";
     final SecurityMockMvcRequestPostProcessors.OidcLoginRequestPostProcessor mockAuthority = oidcLogin().authorities(grantedAuthority);
 
