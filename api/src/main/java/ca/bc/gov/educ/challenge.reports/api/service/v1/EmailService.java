@@ -104,7 +104,7 @@ public class EmailService {
 
     public List<String> getSuperintendentEmailAddressesForAllDistricts(){
         var allDistrictUsers = restUtils.getAllEdxDistrictUsers();
-        final List<String> emailSet = new ArrayList<>();
+        final Set<String> emailSet = new HashSet<>();
         allDistrictUsers.forEach(user ->
                 user.getEdxUserDistricts().forEach(district ->
                         district.getEdxUserDistrictRoles().forEach(role -> {
@@ -112,7 +112,7 @@ public class EmailService {
                                 emailSet.add(user.getEmail());
                             }
                         })));
-        return emailSet;
+        return emailSet.stream().toList();
     }
 
     private String getBlankValueIfRequired(String s) {

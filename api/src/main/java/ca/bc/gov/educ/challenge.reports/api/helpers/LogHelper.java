@@ -1,5 +1,6 @@
 package ca.bc.gov.educ.challenge.reports.api.helpers;
 
+import ca.bc.gov.educ.challenge.reports.api.model.v1.ChallengeReportsSagaEntity;
 import ca.bc.gov.educ.challenge.reports.api.properties.ApplicationProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -67,18 +68,17 @@ public final class LogHelper {
     }
   }
 
-  /**
-   * the event is a json string.
-   *
-   * @param event the json string
-   */
-  public static void logMessagingEventDetails(final String event) {
+  public static void logSagaRetry(final ChallengeReportsSagaEntity saga) {
+    final Map<String, Object> retrySagaMap = new HashMap<>();
     try {
-      MDC.putCloseable("messageEvent", event);
-      log.debug("");
+      retrySagaMap.put("sagaName", saga.getSagaName());
+      retrySagaMap.put("sagaId", saga.getSagaId());
+      retrySagaMap.put("retryCount", saga.getRetryCount());
+      MDC.putCloseable("sagaRetry", mapper.writeValueAsString(retrySagaMap));
+      log.info("Saga is being retried.");
       MDC.clear();
-    } catch (final Exception exception) {
-      log.error(EXCEPTION, exception);
+    } catch (final Exception ex) {
+      log.error(EXCEPTION, ex);
     }
   }
 

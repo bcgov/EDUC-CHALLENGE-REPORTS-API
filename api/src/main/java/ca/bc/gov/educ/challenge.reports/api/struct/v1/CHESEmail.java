@@ -29,9 +29,9 @@ public class CHESEmail {
   }
 
   public List<String> getBcc() {
-    if (this.to == null) {
-      this.to = new ArrayList<>();
+    if (this.bcc == null) {
+      this.bcc = new ArrayList<>();
     }
-    return this.to;
+    return this.bcc;
   }
 }
