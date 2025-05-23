@@ -20,6 +20,8 @@ public class ChallengeReportsSession extends BaseRequest{
     @Size(max = 10)
     private String challengeReportsStatusCode;
 
+    private String schoolYear;
+
     @Size(max = 255)
     @NotNull(message = "fundingRate can not be null.")
     private String fundingRate;
