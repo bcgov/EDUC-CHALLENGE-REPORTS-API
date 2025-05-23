@@ -155,6 +155,21 @@ EMAIL_SUBJECT_FINAL_TO_SUPER="Final Funding Report for Course Challenges"
 EMAIL_FROM_FINAL_TO_SUPER="student.certification@gov.bc.ca"
 EMAIL_TO_FINAL_TO_SUPER="student.certification@gov.bc.ca"
 
+
+
+EMAIL_TEMPLATE_FINAL_TO_FUNDING_INDY_TEAM="<!DOCTYPE html><html xmlns:th=\"http://www.thymeleaf.org\"><head><meta charset=\"ISO-8859-1\"><title>Final Funding Reports for Successful Course Challenges</title></head><body>To whom it may concern,<br><br>The Independent School Funding Report for Course Challenges is available for download for the <span th:text=\"\${$}{schoolYear}\"></span> school year.<br><br>Thank you,<br><b>Student Certification Unit</b></body></html>"
+EMAIL_SUBJECT_FINAL_TO_FUNDING_INDY_TEAM="Final Funding Report for Course Challenges Available"
+EMAIL_FROM_FINAL_TO_FUNDING_INDY_TEAM="student.certification@gov.bc.ca"
+EMAIL_TO_FINAL_TO_FUNDING_INDY_TEAM="educ.fundingandallocationunit@gov.bc.ca"
+
+EMAIL_TEMPLATE_FINAL_TO_FUNDING_PUBLIC_TEAM="<!DOCTYPE html><html xmlns:th=\"http://www.thymeleaf.org\"><head><meta charset=\"ISO-8859-1\"><title>Final Funding Report for Course Challenges Available</title></head><body>To whom it may concern,<br><br>The District Funding Report for Course Challenges is available for download for the <span th:text=\"\${$}{schoolYear}\"></span> school year.<br><br>The final report includes the results of School District feedback received by <span th:text=\"\${$}{finalDateForChanges}\"></span>; preliminary reports were distributed for review on <span th:text=\"\${$}{preliminaryStageCompletionDate}\"></span>.<br><br>Thank you,<br><b>Student Certification Unit</b></body></html>"
+EMAIL_SUBJECT_FINAL_TO_FUNDING_PUBLIC_TEAM="Final Funding Report for Course Challenges Available"
+EMAIL_FROM_FINAL_TO_FUNDING_PUBLIC_TEAM="student.certification@gov.bc.ca"
+EMAIL_TO_FINAL_TO_FUNDING_PUBLIC_TEAM="faa.is@gov.bc.ca"
+
+EMAIL_TO_FINAL_TO_FUNDING_PUBLIC_TEAM="educ.fundingandallocationunit@gov.bc.ca"
+EMAIL_TO_FINAL_TO_FUNDING_INDY_TEAM="faa.is@gov.bc.ca"
+
 SCHEDULED_JOBS_EXTRACT_UNCOMPLETED_SAGAS_CRON="0 0/2 * * * *"
 SCHEDULED_JOBS_EXTRACT_UNCOMPLETED_SAGAS_CRON_LOCK_AT_LEAST_FOR="PT4M"
 SCHEDULED_JOBS_EXTRACT_UNCOMPLETED_SAGAS_CRON_LOCK_AT_MOST_FOR="PT4M"
@@ -163,10 +178,14 @@ if [ "$envValue" = "dev" ]
 then
   EMAIL_TO_PRELIMINARY_TO_SUPER="marco.1.villeneuve@gov.bc.ca"
   EMAIL_TO_FINAL_TO_SUPER="marco.1.villeneuve@gov.bc.ca"
+  EMAIL_TO_FINAL_TO_FUNDING_INDY_TEAM="marco.1.villeneuve@gov.bc.ca"
+  EMAIL_TO_FINAL_TO_FUNDING_PUBLIC_TEAM="marco.1.villeneuve@gov.bc.ca"
 elif [ "$envValue" = "test" ]
 then
   EMAIL_TO_PRELIMINARY_TO_SUPER="marco.1.villeneuve@gov.bc.ca"
   EMAIL_TO_FINAL_TO_SUPER="marco.1.villeneuve@gov.bc.ca"
+  EMAIL_TO_FINAL_TO_FUNDING_INDY_TEAM="marco.1.villeneuve@gov.bc.ca"
+  EMAIL_TO_FINAL_TO_FUNDING_PUBLIC_TEAM="marco.1.villeneuve@gov.bc.ca"
 fi
 
 echo

@@ -102,6 +102,50 @@ public class EmailService {
         sendEmail(emailNotification);
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void sendFinalEmailToIndySchoolsTeam() {
+        EmailData emailNotification;
+        var activeSession = challengeReportsService.getChallengeReportActiveSession();
+        final var subject = emailProperties.getEmailSubjectFinalToIndyTeam();
+        final var from = emailProperties.getEmailFromFinalToIndyTeam();
+        final var to = emailProperties.getEmailToFinalToIndyTeam();
+
+        emailNotification = EmailData.builder()
+                .fromEmail(from)
+                .toEmails(Collections.singletonList(to))
+                .subject(subject)
+                .templateName("final.to.funding.indy.team")
+                .emailFields(Map.of(
+                        "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear())
+                ))
+                .build();
+
+        sendEmail(emailNotification);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void sendFinalEmailToPublicFinanceSchoolsTeam() {
+        EmailData emailNotification;
+        var activeSession = challengeReportsService.getChallengeReportActiveSession();
+        final var subject = emailProperties.getEmailSubjectFinalToPublicTeam();
+        final var from = emailProperties.getEmailFromFinalToPublicTeam();
+        final var to = emailProperties.getEmailToFinalToPublicTeam();
+
+        emailNotification = EmailData.builder()
+                .fromEmail(from)
+                .toEmails(Collections.singletonList(to))
+                .subject(subject)
+                .templateName("final.to.funding.public.team")
+                .emailFields(Map.of(
+                        "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
+                        "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : "",
+                        "preliminaryStageCompletionDate", activeSession.getPreliminaryStageCompletionDate() != null ? activeSession.getPreliminaryStageCompletionDate().format(formatter) : ""
+                ))
+                .build();
+
+        sendEmail(emailNotification);
+    }
+
     public List<String> getSuperintendentEmailAddressesForAllDistricts(){
         var allDistrictUsers = restUtils.getAllEdxDistrictUsers();
         final Set<String> emailSet = new HashSet<>();

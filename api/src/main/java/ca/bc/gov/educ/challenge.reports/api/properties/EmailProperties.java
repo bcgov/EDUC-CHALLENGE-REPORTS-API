@@ -26,6 +26,23 @@ public class EmailProperties {
   @Value("${email.to.final.to.super}")
   private String emailToFinalToSuper;
 
+  @Value("${email.subject.final.to.funding.indy.team}")
+  private String emailSubjectFinalToIndyTeam;
+
+  @Value("${email.from.final.to.funding.indy.team}")
+  private String emailFromFinalToIndyTeam;
+
+  @Value("${email.to.final.to.funding.indy.team}")
+  private String emailToFinalToIndyTeam;
+
+  @Value("${email.subject.final.to.funding.public.team}")
+  private String emailSubjectFinalToPublicTeam;
+
+  @Value("${email.from.final.to.funding.public.team}")
+  private String emailFromFinalToPublicTeam;
+
+  @Value("${email.to.final.to.funding.public.team}")
+  private String emailToFinalToPublicTeam;
 }
 
 

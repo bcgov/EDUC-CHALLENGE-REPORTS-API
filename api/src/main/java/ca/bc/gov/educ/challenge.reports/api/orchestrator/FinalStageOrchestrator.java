@@ -41,7 +41,9 @@ public class FinalStageOrchestrator extends BaseOrchestrator<FinalStageSagaData>
                 .begin(UPDATE_SESSION_STATUS, this::updateSessionStatus)
                 .step(UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED, FETCH_AND_STORE_STUDENTS, this::fetchAndStoreFinalSetOfStudents)
                 .step(FETCH_AND_STORE_STUDENTS, STUDENTS_FETCHED_AND_STORED, SEND_OUT_FINAL_EMAIL, this::sendFinalStageEmails)
-                .end(SEND_OUT_FINAL_EMAIL, FINAL_EMAIL_SENT);
+                .step(SEND_OUT_FINAL_EMAIL, FINAL_EMAIL_SENT, SEND_OUT_PUBLIC_TEAM_EMAIL, this::sendFinalStagePublicSchoolsEmails)
+                .step(SEND_OUT_PUBLIC_TEAM_EMAIL, PUBLIC_TEAM_EMAIL_SENT, SEND_OUT_INDY_TEAM_EMAIL, this::sendFinalStageIndySchoolsEmails)
+                .end(SEND_OUT_INDY_TEAM_EMAIL, INDY_TEAM_EMAIL_SENT);
     }
 
     public void fetchAndStoreFinalSetOfStudents(final Event event, final ChallengeReportsSagaEntity saga, final FinalStageSagaData sagaData) throws JsonProcessingException {
@@ -66,6 +68,28 @@ public class FinalStageOrchestrator extends BaseOrchestrator<FinalStageSagaData>
         emailService.sendFinalEmailToSupers();
 
         postEvent(saga, sagaData, SEND_OUT_FINAL_EMAIL, FINAL_EMAIL_SENT);
+    }
+
+    public void sendFinalStageIndySchoolsEmails(final Event event, final ChallengeReportsSagaEntity saga, final FinalStageSagaData sagaData) throws JsonProcessingException {
+        final ChallengeReportsSagaEventEntity eventStates = this.createEventState(saga, event.getEventType(), event.getEventOutcome(), event.getEventPayload());
+        saga.setSagaState(SEND_OUT_INDY_TEAM_EMAIL.toString());
+        saga.setStatus(IN_PROGRESS.toString());
+        this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
+
+        emailService.sendFinalEmailToIndySchoolsTeam();
+
+        postEvent(saga, sagaData, SEND_OUT_INDY_TEAM_EMAIL, INDY_TEAM_EMAIL_SENT);
+    }
+
+    public void sendFinalStagePublicSchoolsEmails(final Event event, final ChallengeReportsSagaEntity saga, final FinalStageSagaData sagaData) throws JsonProcessingException {
+        final ChallengeReportsSagaEventEntity eventStates = this.createEventState(saga, event.getEventType(), event.getEventOutcome(), event.getEventPayload());
+        saga.setSagaState(SEND_OUT_PUBLIC_TEAM_EMAIL.toString());
+        saga.setStatus(IN_PROGRESS.toString());
+        this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
+
+        emailService.sendFinalEmailToPublicFinanceSchoolsTeam();
+
+        postEvent(saga, sagaData, SEND_OUT_PUBLIC_TEAM_EMAIL, PUBLIC_TEAM_EMAIL_SENT);
     }
 
     public void updateSessionStatus(final Event event, final ChallengeReportsSagaEntity saga, final FinalStageSagaData sagaData) throws JsonProcessingException {
