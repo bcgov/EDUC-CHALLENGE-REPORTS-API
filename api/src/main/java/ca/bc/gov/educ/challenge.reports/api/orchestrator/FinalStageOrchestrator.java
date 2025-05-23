@@ -38,9 +38,9 @@ public class FinalStageOrchestrator extends BaseOrchestrator<FinalStageSagaData>
     @Override
     public void populateStepsToExecuteMap() {
         this.stepBuilder()
-                .begin(FETCH_AND_STORE_STUDENTS, this::fetchAndStoreFinalSetOfStudents)
-                .step(FETCH_AND_STORE_STUDENTS, STUDENTS_FETCHED_AND_STORED, UPDATE_SESSION_STATUS, this::updateSessionStatus)
-                .step(UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED, SEND_OUT_FINAL_EMAIL, this::sendFinalStageEmails)
+                .begin(UPDATE_SESSION_STATUS, this::updateSessionStatus)
+                .step(UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED, FETCH_AND_STORE_STUDENTS, this::fetchAndStoreFinalSetOfStudents)
+                .step(FETCH_AND_STORE_STUDENTS, STUDENTS_FETCHED_AND_STORED, SEND_OUT_FINAL_EMAIL, this::sendFinalStageEmails)
                 .end(SEND_OUT_FINAL_EMAIL, FINAL_EMAIL_SENT);
     }
 

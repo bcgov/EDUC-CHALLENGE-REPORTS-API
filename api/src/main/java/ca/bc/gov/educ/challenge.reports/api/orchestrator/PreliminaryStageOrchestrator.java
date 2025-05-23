@@ -39,9 +39,9 @@ public class PreliminaryStageOrchestrator extends BaseOrchestrator<PreliminarySt
     @Override
     public void populateStepsToExecuteMap() {
         this.stepBuilder()
-                .begin(SEND_OUT_PRELIMINARY_EMAIL, this::sendPreliminaryStageEmails)
-                .step(SEND_OUT_PRELIMINARY_EMAIL, PRELIMINARY_EMAIL_SENT, UPDATE_SESSION_STATUS, this::updateSessionStatus)
-                .end(UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED);
+                .begin(UPDATE_SESSION_STATUS, this::updateSessionStatus)
+                .step(UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED, SEND_OUT_PRELIMINARY_EMAIL, this::sendPreliminaryStageEmails)
+                .end(SEND_OUT_PRELIMINARY_EMAIL, PRELIMINARY_EMAIL_SENT);
     }
 
     public void sendPreliminaryStageEmails(final Event event, final ChallengeReportsSagaEntity saga, final PreliminaryStageSagaData sagaData) throws JsonProcessingException {
