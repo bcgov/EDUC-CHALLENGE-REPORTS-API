@@ -8,7 +8,6 @@ import lombok.*;
 import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.GenericGenerator;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -52,9 +51,8 @@ public class ChallengeReportsSagaEventEntity {
   @Column(name = "SAGA_STEP_NUMBER")
   Integer sagaStepNumber;
 
-  @Lob
   @Column(name = "SAGA_EVENT_RESPONSE")
-  byte[] sagaEventResponseBytes;
+  String sagaEventResponse;
 
   @NotNull(message = "create user cannot be null")
   @Column(name = "CREATE_USER", updatable = false)
@@ -74,20 +72,4 @@ public class ChallengeReportsSagaEventEntity {
   @Column(name = "UPDATE_DATE")
   LocalDateTime updateDate;
 
-  public String getSagaEventResponse() {
-    return new String(this.getSagaEventResponseBytes(), StandardCharsets.UTF_8);
-  }
-
-  public void setSagaEventResponse(final String sagaEventResponse) {
-    this.setSagaEventResponseBytes(sagaEventResponse.getBytes(StandardCharsets.UTF_8));
-  }
-
-  public static class ChallengeReportsSagaEventEntityBuilder {
-    byte[] sagaEventResponseBytes;
-
-    public ChallengeReportsSagaEventEntity.ChallengeReportsSagaEventEntityBuilder sagaEventResponse(final String sagaEventResponse) {
-      this.sagaEventResponseBytes = sagaEventResponse.getBytes(StandardCharsets.UTF_8);
-      return this;
-    }
-  }
 }

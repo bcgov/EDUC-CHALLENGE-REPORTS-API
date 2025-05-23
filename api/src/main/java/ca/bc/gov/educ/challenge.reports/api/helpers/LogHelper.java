@@ -68,6 +68,16 @@ public final class LogHelper {
     }
   }
 
+  public static void logMessagingEventDetails(final String event) {
+    try {
+      MDC.putCloseable("messageEvent", event);
+      log.debug("");
+      MDC.clear();
+    } catch (final Exception exception) {
+      log.error(EXCEPTION, exception);
+    }
+  }
+
   public static void logSagaRetry(final ChallengeReportsSagaEntity saga) {
     final Map<String, Object> retrySagaMap = new HashMap<>();
     try {

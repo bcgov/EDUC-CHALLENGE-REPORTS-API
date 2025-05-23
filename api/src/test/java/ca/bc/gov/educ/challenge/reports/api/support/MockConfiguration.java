@@ -1,6 +1,7 @@
 package ca.bc.gov.educ.challenge.reports.api.support;
 
 
+import ca.bc.gov.educ.challenge.reports.api.messaging.MessageSubscriber;
 import ca.bc.gov.educ.challenge.reports.api.messaging.NatsConnection;
 import ca.bc.gov.educ.challenge.reports.api.messaging.jetstream.Publisher;
 import io.nats.client.Connection;
@@ -47,5 +48,11 @@ public class MockConfiguration {
   @Primary
   public Publisher publisher() {
     return Mockito.mock(Publisher.class);
+  }
+
+  @Bean
+  @Primary
+  public MessageSubscriber messageSubscriber() {
+    return Mockito.mock(MessageSubscriber.class);
   }
 }
