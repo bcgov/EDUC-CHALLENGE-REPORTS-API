@@ -11,7 +11,6 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.GenericGenerator;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -47,9 +46,8 @@ public class ChallengeReportsSagaEntity {
   String sagaState;
 
   @NotNull(message = "payload cannot be null")
-  @Lob
   @Column(name = "PAYLOAD")
-  byte[] payloadBytes;
+  String payload;
 
   @NotNull(message = "status cannot be null")
   @Column(name = "STATUS")
@@ -75,22 +73,5 @@ public class ChallengeReportsSagaEntity {
 
   @Column(name = "RETRY_COUNT")
   private Integer retryCount;
-
-  public String getPayload() {
-    return new String(this.getPayloadBytes(), StandardCharsets.UTF_8);
-  }
-
-  public void setPayload(final String payload) {
-    this.setPayloadBytes(payload.getBytes(StandardCharsets.UTF_8));
-  }
-
-  public static class ChallengeReportsSagaEntityBuilder {
-    byte[] payloadBytes;
-
-    public ChallengeReportsSagaEntity.ChallengeReportsSagaEntityBuilder payload(String payload) {
-      this.payloadBytes = payload.getBytes(StandardCharsets.UTF_8);
-      return this;
-    }
-  }
 
 }
