@@ -51,7 +51,8 @@ public class CSVReportService {
         if (currentStage.equalsIgnoreCase(ChallengeReportsStatus.PRELIM.toString())) {
             var fullStudentList = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod);
             fullStudentList.forEach(student -> {
-                if(student.getDistrictID().toString().equalsIgnoreCase(districtID)) {
+                var currentSchool = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
+                if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {
                     finalStudentDistrictList.add(student);
                 }
             });
@@ -149,6 +150,9 @@ public class CSVReportService {
     }
 
     private String getFundingGroupSnapshotForGrade(List<IndependentSchoolFundingGroupSnapshot> schoolFundingGroups, String gradeCode) {
+        if(StringUtils.isBlank(gradeCode)){
+            return "";
+        }
         return schoolFundingGroups
                 .stream()
                 .filter(group -> gradeCode.equals(group.getSchoolGradeCode()))

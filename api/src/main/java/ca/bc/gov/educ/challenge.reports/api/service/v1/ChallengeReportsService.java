@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReportsStatus.PRELIM;
 
@@ -99,17 +100,26 @@ public class ChallengeReportsService {
 
         var lastYear = Year.of(Integer.parseInt(schoolYear)).minusYears(1);
 
-        var collectionsPagination = restUtils.getLastSeptemberCollection(lastYear.toString());
-        var collection = collectionsPagination.getContent().get(0);
-
-        var sdcStudents = restUtils.get1701DataForStudents(collection.getCollectionID(), gradStudentsMap.keySet().stream().toList());
+        var lastSeptemberCollection = restUtils.getLastSeptemberCollection(lastYear.toString());
+        var septCollection = lastSeptemberCollection.getContent().get(0);
+        var septemberSdcStudents = restUtils.get1701DataForStudents(septCollection.getCollectionID(), gradStudentsMap.keySet().stream().toList());
 
         var mapOfStudents = new HashMap<String, SdcSchoolCollectionStudent>();
-        sdcStudents.forEach(sdcSchoolCollectionStudent -> {
+        var septStudentIDs = septemberSdcStudents.stream().map(SdcSchoolCollectionStudent::getAssignedStudentId).collect(Collectors.toSet());
+        var missingStudentsFromSeptember = getMissingStudentsInSeptemberCollection(septStudentIDs, gradStudents);
+
+        var lastFebruaryCollection = restUtils.getLastFebruaryCollection(schoolYear);
+        var febCollection = lastFebruaryCollection.getContent().get(0);
+        var febSdcStudents = restUtils.get1701DataForStudents(febCollection.getCollectionID(), missingStudentsFromSeptember);
+        var febStudentIDs = febSdcStudents.stream().map(SdcSchoolCollectionStudent::getAssignedStudentId).collect(Collectors.toSet());
+
+        var missingStudentsInBothCollections = getMissingStudentsInBothCollections(febStudentIDs, gradStudents);
+
+        var allSdcStudents = Stream.concat(septemberSdcStudents.stream(), febSdcStudents.stream()).toList();
+
+        allSdcStudents.forEach(sdcSchoolCollectionStudent -> {
             var school = restUtils.getSchoolBySchoolID(sdcSchoolCollectionStudent.getSchoolID()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "school", sdcSchoolCollectionStudent.getSchoolID()));
             if(Arrays.stream(SdcInvalidSchoolFundingCode.getSdcInvalidSchoolFundingCode()).noneMatch(val -> val.equals(sdcSchoolCollectionStudent.getSchoolFundingCode()))) {
-                //Maybe ween out district students here && districtID.equals(UUID.fromString(school.getDistrictId())) -> also public only
-
                 //Valid student in this district
                 if(mapOfStudents.containsKey(sdcSchoolCollectionStudent.getAssignedStudentId())) {
                     //Already contains - pull the record which was in the map - compare against incoming - FTE wins - if FTE ties - lowest mincode wins
@@ -130,28 +140,63 @@ public class ChallengeReportsService {
                 }
 
                 mapOfStudents.values().forEach(student -> {
-                    var currentSchool = restUtils.getSchoolBySchoolID(student.getSchoolID()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "school", student.getSchoolID()));
-                    if(currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {
-                        var gradStudentCourse = gradStudentsMap.get(sdcSchoolCollectionStudent.getAssignedStudentId());
-                        var studentRecord = new ChallengeReportsStudentRecord();
-
-                        var coregCourse = restUtils.getCoregCourseByID(gradStudentCourse.getCourseID()).orElseThrow(() -> new EntityNotFoundException(CourseCode.class, "coregCourse", gradStudentCourse.getCourseID()));
-
-                        studentRecord.setSchoolID(UUID.fromString(school.getSchoolId()));
-                        studentRecord.setDistrictID(UUID.fromString(school.getDistrictId()));
-                        studentRecord.setStudentID(UUID.fromString(sdcSchoolCollectionStudent.getAssignedStudentId()));
-                        studentRecord.setPen(sdcSchoolCollectionStudent.getAssignedPen());
-                        studentRecord.setCourseSession(gradStudentCourse.getCourseSession());
-                        studentRecord.setCourseCodeAndLevel(coregCourse.getExternalCode());
-                        studentRecord.setStudentSurname(sdcSchoolCollectionStudent.getLegalLastName());
-                        studentRecord.setStudentGivenName(sdcSchoolCollectionStudent.getLegalFirstName());
-                        studentRecord.setStudentMiddleNames(sdcSchoolCollectionStudent.getLegalMiddleNames());
-                        fullStudentList.add(studentRecord);
-                    }
+                    addStudentIfRequired(gradStudentsMap, fullStudentList, student.getSchoolID(), student.getAssignedStudentId(), student.getAssignedPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames());
                 });
             }
         });
+
+        var missingStudents = restUtils.getStudents(UUID.randomUUID(), new HashSet<>(missingStudentsInBothCollections));
+        missingStudents.forEach(student -> {
+            var gradStudent = gradStudentsMap.get(student.getStudentID());
+            addStudentIfRequired(gradStudentsMap, fullStudentList, gradStudent.getGradStudent().getSchoolOfRecordId().toString(), student.getStudentID(), student.getPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames());
+        });
+
         return fullStudentList;
+    }
+
+    private void addStudentIfRequired(Map<String, StudentCoursePagination> gradStudentsMap, List<ChallengeReportsStudentRecord> fullStudentList, String schoolID, String studentID, String pen, String firstName, String lastName, String middleNames){
+        var currentSchool = restUtils.getSchoolBySchoolID(schoolID).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "school", schoolID));
+        if(currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC") || currentSchool.getSchoolCategoryCode().equalsIgnoreCase("INDEPEND") || currentSchool.getSchoolCategoryCode().equalsIgnoreCase("INDP_FNS")) {
+            var gradStudentCourse = gradStudentsMap.get(studentID);
+            var studentRecord = new ChallengeReportsStudentRecord();
+
+            var coregCourse = restUtils.getCoregCourseByID(gradStudentCourse.getCourseID()).orElseThrow(() -> new EntityNotFoundException(CourseCode.class, "coregCourse", gradStudentCourse.getCourseID()));
+
+            studentRecord.setSchoolID(UUID.fromString(currentSchool.getSchoolId()));
+            studentRecord.setDistrictID(UUID.fromString(currentSchool.getDistrictId()));
+            studentRecord.setStudentID(UUID.fromString(studentID));
+            studentRecord.setPen(pen);
+            studentRecord.setCourseSession(gradStudentCourse.getCourseSession());
+            studentRecord.setCourseCodeAndLevel(coregCourse.getExternalCode());
+            studentRecord.setStudentSurname(lastName);
+            studentRecord.setStudentGivenName(firstName);
+            studentRecord.setStudentMiddleNames(middleNames);
+            fullStudentList.add(studentRecord);
+        }
+    }
+
+    private List<String> getMissingStudentsInSeptemberCollection(Set<String> septStudentIDs, List<StudentCoursePagination> studentCourses){
+        var missingStudentsList = new ArrayList<String>();
+
+        studentCourses.forEach(studentCoursePagination -> {
+            if(!septStudentIDs.contains(studentCoursePagination.getGradStudent().getStudentID().toString())){
+                missingStudentsList.add(studentCoursePagination.getGradStudent().getStudentID().toString());
+            }
+        });
+
+        return missingStudentsList;
+    }
+
+    private List<String> getMissingStudentsInBothCollections(Set<String> febStudentIDs, List<StudentCoursePagination> studentCourses){
+        var missingStudentsList = new ArrayList<String>();
+
+        studentCourses.forEach(studentCoursePagination -> {
+            if(!febStudentIDs.contains(studentCoursePagination.getGradStudent().getStudentID().toString())){
+                missingStudentsList.add(studentCoursePagination.getGradStudent().getStudentID().toString());
+            }
+        });
+
+        return missingStudentsList;
     }
 
     public DistrictChallengeReportsCounts getChallengeReportCountsForDistrict(String districtID) throws JsonProcessingException {
@@ -159,12 +204,12 @@ public class ChallengeReportsService {
 
         var finalStudentDistrictList = new ArrayList<ChallengeReportsStudentRecord>();
         var currentStage = currentReportingPeriod.getChallengeReportsStatusCode();
-        ByteArrayOutputStream byteArrayOutputStream;
 
         if (currentStage.equalsIgnoreCase(ChallengeReportsStatus.PRELIM.toString())) {
             var fullStudentList = getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod);
             fullStudentList.forEach(student -> {
-                if(student.getDistrictID().toString().equalsIgnoreCase(districtID)) {
+                var currentSchool = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
+                if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {
                     finalStudentDistrictList.add(student);
                 }
             });
