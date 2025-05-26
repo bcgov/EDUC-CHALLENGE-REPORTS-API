@@ -62,7 +62,7 @@ public class PreliminaryStageOrchestrator extends BaseOrchestrator<PreliminarySt
         this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
 
         challengeReportsService.updateChallengeReportsStatus(ChallengeReportsStatus.PRELIM, sagaData.getUpdateUser());
-
+        emailService.sendPreliminaryEmailToSupers();
         postEvent(saga, sagaData, UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED);
     }
 

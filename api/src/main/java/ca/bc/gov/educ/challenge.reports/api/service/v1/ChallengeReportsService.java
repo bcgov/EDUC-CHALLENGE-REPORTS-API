@@ -17,6 +17,8 @@ import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.institute.v1.Scho
 import ca.bc.gov.educ.challenge.reports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
 import ca.bc.gov.educ.challenge.reports.api.util.TransformUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.micrometer.common.util.StringUtils;
+import io.netty.util.internal.StringUtil;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.springframework.beans.BeanUtils;
@@ -140,7 +142,7 @@ public class ChallengeReportsService {
                 }
 
                 mapOfStudents.values().forEach(student -> {
-                    addStudentIfRequired(gradStudentsMap, fullStudentList, student.getSchoolID(), student.getAssignedStudentId(), student.getAssignedPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames());
+                    addStudentIfRequired(gradStudentsMap, fullStudentList, student.getSchoolID(), student.getAssignedStudentId(), student.getAssignedPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames(), student.getSchoolFundingCode());
                 });
             }
         });
@@ -148,15 +150,15 @@ public class ChallengeReportsService {
         var missingStudents = restUtils.getStudents(UUID.randomUUID(), new HashSet<>(missingStudentsInBothCollections));
         missingStudents.forEach(student -> {
             var gradStudent = gradStudentsMap.get(student.getStudentID());
-            addStudentIfRequired(gradStudentsMap, fullStudentList, gradStudent.getGradStudent().getSchoolOfRecordId().toString(), student.getStudentID(), student.getPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames());
+            addStudentIfRequired(gradStudentsMap, fullStudentList, gradStudent.getGradStudent().getSchoolOfRecordId().toString(), student.getStudentID(), student.getPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames(), null);
         });
 
         return fullStudentList;
     }
 
-    private void addStudentIfRequired(Map<String, StudentCoursePagination> gradStudentsMap, List<ChallengeReportsStudentRecord> fullStudentList, String schoolID, String studentID, String pen, String firstName, String lastName, String middleNames){
+    private void addStudentIfRequired(Map<String, StudentCoursePagination> gradStudentsMap, List<ChallengeReportsStudentRecord> fullStudentList, String schoolID, String studentID, String pen, String firstName, String lastName, String middleNames, String studentFundingCode){
         var currentSchool = restUtils.getSchoolBySchoolID(schoolID).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "school", schoolID));
-        if(currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC") || currentSchool.getSchoolCategoryCode().equalsIgnoreCase("INDEPEND") || currentSchool.getSchoolCategoryCode().equalsIgnoreCase("INDP_FNS")) {
+        if(isPublicSchoolWithNoFundingCode14(currentSchool, studentFundingCode) || isIndySchoolWithNoFundingCode14or20(currentSchool, studentFundingCode)){
             var gradStudentCourse = gradStudentsMap.get(studentID);
             var studentRecord = new ChallengeReportsStudentRecord();
 
@@ -173,6 +175,14 @@ public class ChallengeReportsService {
             studentRecord.setStudentMiddleNames(middleNames);
             fullStudentList.add(studentRecord);
         }
+    }
+
+    private boolean isPublicSchoolWithNoFundingCode14(SchoolTombstone currentSchool, String studentFundingCode){
+        return currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC") && (StringUtils.isBlank(studentFundingCode) || !SdcInvalidSchoolFundingCode.CODE_14.getCode().equalsIgnoreCase(studentFundingCode));
+    }
+
+    private boolean isIndySchoolWithNoFundingCode14or20(SchoolTombstone currentSchool, String studentFundingCode){
+        return (currentSchool.getSchoolCategoryCode().equalsIgnoreCase("INDEPEND") || currentSchool.getSchoolCategoryCode().equalsIgnoreCase("INDP_FNS"))  && (StringUtils.isBlank(studentFundingCode) || Arrays.stream(SdcInvalidSchoolFundingCode.getSdcInvalidSchoolFundingCode()).noneMatch(val -> val.equals(studentFundingCode)));
     }
 
     private List<String> getMissingStudentsInSeptemberCollection(Set<String> septStudentIDs, List<StudentCoursePagination> studentCourses){
