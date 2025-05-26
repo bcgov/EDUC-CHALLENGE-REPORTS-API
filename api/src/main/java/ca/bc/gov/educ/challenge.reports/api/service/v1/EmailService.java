@@ -52,13 +52,13 @@ public class EmailService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void sendPreliminaryEmailToSupers() {
+    public void sendPreliminaryEmailTo1701Admin() {
         EmailData emailNotification;
         var activeSession = challengeReportsService.getChallengeReportActiveSession();
         final var subject = emailProperties.getEmailSubjectPreliminaryToSuper();
         final var from = emailProperties.getEmailFromPreliminaryToSuper();
         final var to = emailProperties.getEmailToPreliminaryToSuper();
-        var toEmails = getSuperintendentEmailAddressesForAllDistricts();
+        var toEmails = get1701AdminEmailAddressesForAllDistricts();
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
@@ -68,7 +68,7 @@ public class EmailService {
                 .templateName("preliminary.to.super")
                 .emailFields(Map.of(
                         "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
-                        "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
+                        "schoolYear", getYearWithPriorValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
                         "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : ""
                 ))
                 .build();
@@ -77,13 +77,13 @@ public class EmailService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void sendFinalEmailToSupers() {
+    public void sendFinalEmailTo1701Admin() {
         EmailData emailNotification;
         var activeSession = challengeReportsService.getChallengeReportActiveSession();
         final var subject = emailProperties.getEmailSubjectFinalToSuper();
         final var from = emailProperties.getEmailFromFinalToSuper();
         final var to = emailProperties.getEmailToFinalToSuper();
-        var toEmails = getSuperintendentEmailAddressesForAllDistricts();
+        var toEmails = get1701AdminEmailAddressesForAllDistricts();
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
@@ -93,7 +93,7 @@ public class EmailService {
                 .templateName("final.to.super")
                 .emailFields(Map.of(
                         "fundingRate", getBlankValueIfRequired(activeSession.getFundingRate()),
-                        "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
+                        "schoolYear", getYearWithPriorValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
                         "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : "",
                         "preliminaryStageCompletionDate", activeSession.getPreliminaryStageCompletionDate() != null ? activeSession.getPreliminaryStageCompletionDate().format(formatter) : ""
                 ))
@@ -116,7 +116,7 @@ public class EmailService {
                 .subject(subject)
                 .templateName("final.to.funding.indy.team")
                 .emailFields(Map.of(
-                        "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear())
+                        "schoolYear", getYearWithPriorValue(activeSession.getChallengeReportsPeriod().getSchoolYear())
                 ))
                 .build();
 
@@ -137,7 +137,7 @@ public class EmailService {
                 .subject(subject)
                 .templateName("final.to.funding.public.team")
                 .emailFields(Map.of(
-                        "schoolYear", getYearWithNextValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
+                        "schoolYear", getYearWithPriorValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
                         "finalDateForChanges", activeSession.getFinalDateForChanges() != null ? activeSession.getFinalDateForChanges().format(formatter) : "",
                         "preliminaryStageCompletionDate", activeSession.getPreliminaryStageCompletionDate() != null ? activeSession.getPreliminaryStageCompletionDate().format(formatter) : ""
                 ))
@@ -146,13 +146,13 @@ public class EmailService {
         sendEmail(emailNotification);
     }
 
-    public List<String> getSuperintendentEmailAddressesForAllDistricts(){
+    public List<String> get1701AdminEmailAddressesForAllDistricts(){
         var allDistrictUsers = restUtils.getAllEdxDistrictUsers();
         final Set<String> emailSet = new HashSet<>();
         allDistrictUsers.forEach(user ->
                 user.getEdxUserDistricts().forEach(district ->
                         district.getEdxUserDistrictRoles().forEach(role -> {
-                            if (Objects.equals(role.getEdxRoleCode(), "SUPERINT")) {
+                            if (Objects.equals(role.getEdxRoleCode(), "DISTRICT_SDC")) {
                                 emailSet.add(user.getEmail());
                             }
                         })));
@@ -167,14 +167,14 @@ public class EmailService {
         return s;
     }
 
-    private String getYearWithNextValue(String schoolYear) {
+    private String getYearWithPriorValue(String schoolYear) {
         if (StringUtils.isBlank(schoolYear)) {
             return "";
         }
 
         var year = Year.of(Integer.parseInt(schoolYear));
 
-        return schoolYear + "/" + year.plusYears(1);
+        return year.minusYears(1) + "/" + schoolYear;
     }
 
 

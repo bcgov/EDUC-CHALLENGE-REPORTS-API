@@ -65,7 +65,7 @@ public class FinalStageOrchestrator extends BaseOrchestrator<FinalStageSagaData>
         saga.setStatus(IN_PROGRESS.toString());
         this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
 
-        emailService.sendFinalEmailToSupers();
+        emailService.sendFinalEmailTo1701Admin();
 
         postEvent(saga, sagaData, SEND_OUT_FINAL_EMAIL, FINAL_EMAIL_SENT);
     }

@@ -50,7 +50,7 @@ public class PreliminaryStageOrchestrator extends BaseOrchestrator<PreliminarySt
         saga.setStatus(IN_PROGRESS.toString());
         this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
 
-        emailService.sendPreliminaryEmailToSupers();
+        emailService.sendPreliminaryEmailTo1701Admin();
 
         postEvent(saga, sagaData, SEND_OUT_PRELIMINARY_EMAIL, PRELIMINARY_EMAIL_SENT);
     }
@@ -62,7 +62,7 @@ public class PreliminaryStageOrchestrator extends BaseOrchestrator<PreliminarySt
         this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
 
         challengeReportsService.updateChallengeReportsStatus(ChallengeReportsStatus.PRELIM, sagaData.getUpdateUser());
-        emailService.sendPreliminaryEmailToSupers();
+        emailService.sendPreliminaryEmailTo1701Admin();
         postEvent(saga, sagaData, UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED);
     }
 
