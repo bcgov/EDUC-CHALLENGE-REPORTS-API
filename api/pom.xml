@@ -12,10 +12,10 @@
   <properties>
     <sonar.language>java</sonar.language>
     <sonar.exclusions>
-      src/main/resources/**,src/main/java/ca/bc/gov/educ/api/institute/endpoint/**,src/main/java/ca/bc/gov/educ/api/institute/struct/**
-      ,src/main/java/ca/bc/gov/educ/api/institute/model/**,src/main/java/ca/bc/gov/educ/api/institute/rest/**
-      ,src/main/java/ca/bc/gov/educ/api/institute/messaging/**,
-      src/main/java/ca/bc/gov/educ/api/institute/helpers/**,
+      src/main/resources/**,src/main/java/ca/bc/gov/educ/api/challenge/reports/endpoint/**,src/main/java/ca/bc/gov/educ/api/challenge/reports/struct/**
+      ,src/main/java/ca/bc/gov/educ/api/challenge/reports/model/**,src/main/java/ca/bc/gov/educ/api/challenge/reports/rest/**
+      ,src/main/java/ca/bc/gov/educ/api/challenge/reports/messaging/**,
+      src/main/java/ca/bc/gov/educ/api/challenge/reports/helpers/**,
     </sonar.exclusions>
     <java.version>21</java.version>
 
