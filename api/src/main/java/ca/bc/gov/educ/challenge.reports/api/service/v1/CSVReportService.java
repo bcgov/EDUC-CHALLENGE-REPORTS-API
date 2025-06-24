@@ -139,14 +139,10 @@ public class CSVReportService {
             fundingGroup = getFundingGroupSnapshotForGrade(schoolGroups, student.getCourseCodeAndLevel().replaceAll("[^0-9]", ""));
         }
 
-        if(fundingGroup == null){
-            return null;
-        }
-
         return new ArrayList<>(Arrays.asList(
                 school.getMincode(),
                 school.getDisplayName(),
-                fundingGroup,
+                StringUtils.isBlank(fundingGroup) ? "" : fundingGroup,
                 student.getPen(),
                 student.getCourseCodeAndLevel()
         ));
