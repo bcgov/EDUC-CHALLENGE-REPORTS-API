@@ -140,11 +140,12 @@ public class ChallengeReportsService {
                 }else{
                     mapOfStudents.put(sdcSchoolCollectionStudent.getAssignedStudentId(), sdcSchoolCollectionStudent);
                 }
-
-                mapOfStudents.values().forEach(student -> {
-                    addStudentIfRequired(gradStudentsMap, fullStudentList, student.getSchoolID(), student.getAssignedStudentId(), student.getAssignedPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames(), student.getSchoolFundingCode());
-                });
             }
+        });
+
+        var foundStudents = mapOfStudents.values();
+        foundStudents.forEach(student -> {
+            addStudentIfRequired(gradStudentsMap, fullStudentList, student.getSchoolID(), student.getAssignedStudentId(), student.getAssignedPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames(), student.getSchoolFundingCode());
         });
 
         var missingStudents = restUtils.getStudents(UUID.randomUUID(), new HashSet<>(missingStudentsInBothCollections));
