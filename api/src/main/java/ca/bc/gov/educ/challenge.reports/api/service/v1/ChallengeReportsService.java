@@ -115,7 +115,7 @@ public class ChallengeReportsService {
         var febSdcStudents = restUtils.get1701DataForStudents(febCollection.getCollectionID(), missingStudentsFromSeptember);
         var febStudentIDs = febSdcStudents.stream().map(SdcSchoolCollectionStudent::getAssignedStudentId).collect(Collectors.toSet());
 
-        var missingStudentsInBothCollections = getMissingStudentsInBothCollections(febStudentIDs, gradStudents);
+        var missingStudentsInBothCollections = getMissingStudentsInBothCollections(febStudentIDs, missingStudentsFromSeptember);
 
         var allSdcStudents = Stream.concat(septemberSdcStudents.stream(), febSdcStudents.stream()).toList();
 
@@ -197,12 +197,12 @@ public class ChallengeReportsService {
         return missingStudentsList;
     }
 
-    private List<String> getMissingStudentsInBothCollections(Set<String> febStudentIDs, List<StudentCoursePagination> studentCourses){
+    private List<String> getMissingStudentsInBothCollections(Set<String> febStudentIDs, List<String> missingStudentIDs){
         var missingStudentsList = new ArrayList<String>();
 
-        studentCourses.forEach(studentCoursePagination -> {
-            if(!febStudentIDs.contains(studentCoursePagination.getGradStudent().getStudentID().toString())){
-                missingStudentsList.add(studentCoursePagination.getGradStudent().getStudentID().toString());
+        missingStudentIDs.forEach(missingStudentID -> {
+            if(!febStudentIDs.contains(missingStudentID)){
+                missingStudentsList.add(missingStudentID);
             }
         });
 
