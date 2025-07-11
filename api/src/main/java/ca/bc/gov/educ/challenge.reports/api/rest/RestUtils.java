@@ -175,7 +175,7 @@ public class RestUtils {
   }
 
   public List<CourseCode> getCoregCourses() {
-    log.info("Calling COREG API to load schools to memory");
+    log.info("Calling COREG API to load courses to memory");
     return this.webClient.get()
             .uri(this.props.getCoregApiURL() + "/all/39")
             .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)

@@ -98,7 +98,7 @@ public class ChallengeReportsService {
         var schoolYear = challengeReportsSession.getChallengeReportsPeriod().getSchoolYear();
         var gradStudents = restUtils.getChallengeReportGradStudentCoursesForYear(getCourseSessionValues(schoolYear));
 
-        Map<String, StudentCoursePagination> gradStudentsMap = gradStudents.stream().collect(Collectors.toMap(studentCourse -> studentCourse.getGradStudent().getStudentID().toString(), item -> item));
+        Map<String, List<StudentCoursePagination>> gradStudentsMap = gradStudents.stream().collect(Collectors.groupingBy(studentCourse -> studentCourse.getGradStudent().getStudentID().toString()));
 
         var lastYear = Year.of(Integer.parseInt(schoolYear)).minusYears(1);
 
@@ -151,30 +151,32 @@ public class ChallengeReportsService {
         var missingStudents = restUtils.getStudents(UUID.randomUUID(), new HashSet<>(missingStudentsInBothCollections));
         missingStudents.forEach(student -> {
             var gradStudent = gradStudentsMap.get(student.getStudentID());
-            addStudentIfRequired(gradStudentsMap, fullStudentList, gradStudent.getGradStudent().getSchoolOfRecordId().toString(), student.getStudentID(), student.getPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames(), null);
+            addStudentIfRequired(gradStudentsMap, fullStudentList, gradStudent.get(0).getGradStudent().getSchoolOfRecordId().toString(), student.getStudentID(), student.getPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames(), null);
         });
 
         return fullStudentList;
     }
 
-    private void addStudentIfRequired(Map<String, StudentCoursePagination> gradStudentsMap, List<ChallengeReportsStudentRecord> fullStudentList, String schoolID, String studentID, String pen, String firstName, String lastName, String middleNames, String studentFundingCode){
+    private void addStudentIfRequired(Map<String, List<StudentCoursePagination>> gradStudentsMap, List<ChallengeReportsStudentRecord> fullStudentList, String schoolID, String studentID, String pen, String firstName, String lastName, String middleNames, String studentFundingCode){
         var currentSchool = restUtils.getSchoolBySchoolID(schoolID).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "school", schoolID));
         if(isPublicSchoolWithNoFundingCode14(currentSchool, studentFundingCode) || isIndySchoolWithNoFundingCode14or20(currentSchool, studentFundingCode)){
-            var gradStudentCourse = gradStudentsMap.get(studentID);
-            var studentRecord = new ChallengeReportsStudentRecord();
+            var gradStudentCourseList = gradStudentsMap.get(studentID);
+            gradStudentCourseList.forEach(studentCourse -> {
+                var studentRecord = new ChallengeReportsStudentRecord();
 
-            var coregCourse = restUtils.getCoregCourseByID(gradStudentCourse.getCourseID()).orElseThrow(() -> new EntityNotFoundException(CourseCode.class, "coregCourse", gradStudentCourse.getCourseID()));
+                var coregCourse = restUtils.getCoregCourseByID(studentCourse.getCourseID()).orElseThrow(() -> new EntityNotFoundException(CourseCode.class, "coregCourse", studentCourse.getCourseID()));
 
-            studentRecord.setSchoolID(UUID.fromString(currentSchool.getSchoolId()));
-            studentRecord.setDistrictID(UUID.fromString(currentSchool.getDistrictId()));
-            studentRecord.setStudentID(UUID.fromString(studentID));
-            studentRecord.setPen(pen);
-            studentRecord.setCourseSession(gradStudentCourse.getCourseSession());
-            studentRecord.setCourseCodeAndLevel(coregCourse.getExternalCode());
-            studentRecord.setStudentSurname(lastName);
-            studentRecord.setStudentGivenName(firstName);
-            studentRecord.setStudentMiddleNames(middleNames);
-            fullStudentList.add(studentRecord);
+                studentRecord.setSchoolID(UUID.fromString(currentSchool.getSchoolId()));
+                studentRecord.setDistrictID(UUID.fromString(currentSchool.getDistrictId()));
+                studentRecord.setStudentID(UUID.fromString(studentID));
+                studentRecord.setPen(pen);
+                studentRecord.setCourseSession(studentCourse.getCourseSession());
+                studentRecord.setCourseCodeAndLevel(coregCourse.getExternalCode());
+                studentRecord.setStudentSurname(lastName);
+                studentRecord.setStudentGivenName(firstName);
+                studentRecord.setStudentMiddleNames(middleNames);
+                fullStudentList.add(studentRecord);
+            });
         }
     }
 
