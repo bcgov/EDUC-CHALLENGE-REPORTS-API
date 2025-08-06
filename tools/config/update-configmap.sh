@@ -177,10 +177,10 @@ then
   EMAIL_TO_FINAL_TO_FUNDING_PUBLIC_TEAM="marco.1.villeneuve@gov.bc.ca"
 elif [ "$envValue" = "test" ]
 then
-  EMAIL_TO_PRELIMINARY_TO_SUPER="marco.1.villeneuve@gov.bc.ca"
-  EMAIL_TO_FINAL_TO_SUPER="marco.1.villeneuve@gov.bc.ca"
-  EMAIL_TO_FINAL_TO_FUNDING_INDY_TEAM="marco.1.villeneuve@gov.bc.ca"
-  EMAIL_TO_FINAL_TO_FUNDING_PUBLIC_TEAM="marco.1.villeneuve@gov.bc.ca"
+  EMAIL_TO_PRELIMINARY_TO_SUPER="Michael.Poplawski@gov.bc.ca"
+  EMAIL_TO_FINAL_TO_SUPER="Michael.Poplawski@gov.bc.ca"
+  EMAIL_TO_FINAL_TO_FUNDING_INDY_TEAM="Michael.Poplawski@gov.bc.ca"
+  EMAIL_TO_FINAL_TO_FUNDING_PUBLIC_TEAM="Michael.Poplawski@gov.bc.ca"
 fi
 
 echo
