@@ -45,7 +45,7 @@ public class SearchCriteriaBuilder {
         collectionTypeCodeCriteria.put("valueType", "STRING");
 
         Map<String, Object> openDateCriteria = new HashMap<>();
-        openDateCriteria.put("key", "openDate");
+        openDateCriteria.put("key", "closeDate");
         openDateCriteria.put("value", processingYear + "-01-01," + processingYear + "-12-31");  // Start of last year
         openDateCriteria.put("operation", "btn");
         openDateCriteria.put("valueType", "DATE");
