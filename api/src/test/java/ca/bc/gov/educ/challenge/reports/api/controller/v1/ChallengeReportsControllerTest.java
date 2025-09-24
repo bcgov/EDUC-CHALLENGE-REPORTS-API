@@ -68,10 +68,6 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
   @BeforeEach
   public void setUp() {
     MockitoAnnotations.openMocks(this);
-  }
-
-  @AfterEach
-  public void tearDown() {
     challengeReportsSessionRepository.deleteAll();
     challengeReportsReportingPeriodRepository.deleteAll();
     challengeReportsSagaEventRepository.deleteAll();
