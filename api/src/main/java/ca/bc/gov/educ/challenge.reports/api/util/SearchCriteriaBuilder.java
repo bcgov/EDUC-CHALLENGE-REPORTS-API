@@ -88,7 +88,7 @@ public class SearchCriteriaBuilder {
         schoolListCrit.put("key", "graduationStudentRecordEntity.schoolOfRecordId");
         schoolListCrit.put("operation", "in");
         schoolListCrit.put("value", String.join(",", schoolIDs));
-        schoolListCrit.put("valueType", "STRING");
+        schoolListCrit.put("valueType", "UUID");
         schoolListCrit.put("condition", "AND");
 
         Map<String, Object> wrapper = new HashMap<>();
