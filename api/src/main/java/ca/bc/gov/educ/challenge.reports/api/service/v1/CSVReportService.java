@@ -49,7 +49,7 @@ public class CSVReportService {
         ByteArrayOutputStream byteArrayOutputStream;
 
         if (currentStage.equalsIgnoreCase(ChallengeReportsStatus.PRELIM.toString())) {
-            var fullStudentList = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod);
+            var fullStudentList = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod, districtID);
             fullStudentList.forEach(student -> {
                 var currentSchool = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
                 if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {

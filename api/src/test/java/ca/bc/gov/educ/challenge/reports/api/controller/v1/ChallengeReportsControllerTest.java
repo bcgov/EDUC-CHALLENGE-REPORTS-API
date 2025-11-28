@@ -207,7 +207,7 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
     studentCoursePagination.setStudentCourseID(UUID.randomUUID());
     studentCoursePagination.setCourseSession("202507");
 
-    when(this.restUtils.getChallengeReportGradStudentCoursesForYear(anyList())).thenReturn(List.of(studentCoursePagination));
+    when(this.restUtils.getChallengeReportGradStudentCoursesForYear(anyList(), anyList())).thenReturn(List.of(studentCoursePagination));
 
     Collection coll = new Collection();
     coll.setCollectionID(UUID.randomUUID().toString());

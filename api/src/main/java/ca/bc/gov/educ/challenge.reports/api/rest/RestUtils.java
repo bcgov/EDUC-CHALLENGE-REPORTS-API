@@ -27,7 +27,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,6 +57,7 @@ public class RestUtils {
   private final Map<String, SchoolTombstone> schoolMap = new ConcurrentHashMap<>();
   private final Map<String, CourseCode> coregMap = new ConcurrentHashMap<>();
   private final Map<String, District> districtMap = new ConcurrentHashMap<>();
+  private final Map<String, List<String>> districtToSchoolIDMap = new ConcurrentHashMap<>();
   private final Map<UUID, List<EdxUser>> edxDistrictUserMap = new ConcurrentHashMap<>();
   private final WebClient webClient;
   private final MessagePublisher messagePublisher;
@@ -72,8 +72,6 @@ public class RestUtils {
 
   @Value("${initialization.background.enabled}")
   private Boolean isBackgroundInitializationEnabled;
-
-  private final Map<String, List<UUID>> independentAuthorityToSchoolIDMap = new ConcurrentHashMap<>();
 
   @Autowired
   public RestUtils(@Qualifier("chesWebClient") final WebClient chesWebClient, WebClient webClient, final ApplicationProperties props, final MessagePublisher messagePublisher) {
@@ -108,8 +106,11 @@ public class RestUtils {
       writeLock.lock();
       for (val school : this.getSchools()) {
         this.schoolMap.put(school.getSchoolId(), school);
-        if (StringUtils.isNotBlank(school.getIndependentAuthorityId())) {
-          this.independentAuthorityToSchoolIDMap.computeIfAbsent(school.getIndependentAuthorityId(), k -> new ArrayList<>()).add(UUID.fromString(school.getSchoolId()));
+        if(districtToSchoolIDMap.containsKey(school.getDistrictId())) {
+          districtToSchoolIDMap.get(school.getDistrictId()).add(school.getSchoolId());
+        }else{
+          districtToSchoolIDMap.put(school.getDistrictId(), new ArrayList<>());
+          districtToSchoolIDMap.get(school.getDistrictId()).add(school.getSchoolId());
         }
       }
     } catch (Exception ex) {
@@ -238,6 +239,15 @@ public class RestUtils {
     return Optional.ofNullable(this.schoolMap.get(schoolID));
   }
 
+  public List<String> getSchoolsIDsByDistrictID(final String districtID) {
+    if (this.districtToSchoolIDMap.isEmpty()) {
+      log.info("School map is empty reloading schools");
+      this.populateSchoolMap();
+    }
+    return this.districtToSchoolIDMap.get(districtID);
+  }
+
+
   public Optional<District> getDistrictByDistrictID(final String districtID) {
     if (this.districtMap.isEmpty()) {
       log.info("District map is empty reloading schools");
@@ -319,11 +329,17 @@ public class RestUtils {
                     .collect(Collectors.toList());
   }
 
-  public List<StudentCoursePagination> getChallengeReportGradStudentCoursesForYear(List<String> courseSessions) throws JsonProcessingException {
+  public List<StudentCoursePagination> getChallengeReportGradStudentCoursesForYear(List<String> courseSessions, List<String> schoolIDs) throws JsonProcessingException {
     int pageSize = 5000;
     int pageNumber = 0;
 
-    var searchCriteriaList = SearchCriteriaBuilder.getChallengeReportGradCriteria(courseSessions);
+    List<Map<String, Object>> searchCriteriaList;
+    if(schoolIDs == null || schoolIDs.isEmpty()) {
+      searchCriteriaList = SearchCriteriaBuilder.getChallengeReportGradCriteria(courseSessions);  
+    }else{
+      searchCriteriaList = SearchCriteriaBuilder.getChallengeReportGradCriteria(courseSessions, schoolIDs);
+    }
+    
 
     String searchJson = objectMapper.writeValueAsString(searchCriteriaList);
     String encodedSearchJson = URLEncoder.encode(searchJson, StandardCharsets.UTF_8);
