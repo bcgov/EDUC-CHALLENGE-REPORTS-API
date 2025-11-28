@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.micrometer.common.util.StringUtils;
 import io.netty.util.internal.StringUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ import static ca.bc.gov.educ.challenge.reports.api.constants.v1.ChallengeReports
 
 @RequiredArgsConstructor
 @Service
+@Slf4j
 public class ChallengeReportsService {
     private final ChallengeReportsSessionRepository challengeReportsSessionRepository;
     private final ChallengeReportsPostedStudentRepository challengeReportsPostedStudentRepository;
@@ -96,29 +98,41 @@ public class ChallengeReportsService {
     public List<ChallengeReportsStudentRecord> getAndGeneratePreliminaryChallengeStudentList(ChallengeReportsSessionEntity challengeReportsSession) throws JsonProcessingException {
         var fullStudentList = new ArrayList<ChallengeReportsStudentRecord>();
         var schoolYear = challengeReportsSession.getChallengeReportsPeriod().getSchoolYear();
+        log.debug("Calling out for grad students for challengeReportsSession {}", challengeReportsSession);
         var gradStudents = restUtils.getChallengeReportGradStudentCoursesForYear(getCourseSessionValues(schoolYear));
+        log.debug("{} GRAD students returned", gradStudents.size());
 
         Map<String, List<StudentCoursePagination>> gradStudentsMap = gradStudents.stream().collect(Collectors.groupingBy(studentCourse -> studentCourse.getGradStudent().getStudentID().toString()));
 
         var lastYear = Year.of(Integer.parseInt(schoolYear)).minusYears(1);
 
+        log.debug("Calling out for last september collection for challengeReportsSession {}", challengeReportsSession);
         var lastSeptemberCollection = restUtils.getLastSeptemberCollection(lastYear.toString());
+        log.debug("September collection returned");
         var septCollection = lastSeptemberCollection.getContent().get(0);
+        log.debug("Calling out for last sept 1701 students for challengeReportsSession {}", challengeReportsSession);
         var septemberSdcStudents = restUtils.get1701DataForStudents(septCollection.getCollectionID(), gradStudentsMap.keySet().stream().toList());
+        log.debug("{} sept SDC students returned", septemberSdcStudents.size());
 
         var mapOfStudents = new HashMap<String, SdcSchoolCollectionStudent>();
         var septStudentIDs = septemberSdcStudents.stream().map(SdcSchoolCollectionStudent::getAssignedStudentId).collect(Collectors.toSet());
         var missingStudentsFromSeptember = getMissingStudentsInSeptemberCollection(septStudentIDs, gradStudents);
 
+        log.debug("Calling out for last feb collection for challengeReportsSession {}", challengeReportsSession);
         var lastFebruaryCollection = restUtils.getLastFebruaryCollection(schoolYear);
+        log.debug("Feb collection returned");
         var febCollection = lastFebruaryCollection.getContent().get(0);
+        log.debug("Calling out for last feb 1701 students for challengeReportsSession {}", challengeReportsSession);
         var febSdcStudents = restUtils.get1701DataForStudents(febCollection.getCollectionID(), missingStudentsFromSeptember);
+        log.debug("{} feb SDC students returned", febSdcStudents.size());
         var febStudentIDs = febSdcStudents.stream().map(SdcSchoolCollectionStudent::getAssignedStudentId).collect(Collectors.toSet());
 
+        log.debug("Processing remaining student data");
         var missingStudentsInBothCollections = getMissingStudentsInBothCollections(febStudentIDs, missingStudentsFromSeptember);
 
         var allSdcStudents = Stream.concat(septemberSdcStudents.stream(), febSdcStudents.stream()).toList();
 
+        
         allSdcStudents.forEach(sdcSchoolCollectionStudent -> {
             var school = restUtils.getSchoolBySchoolID(sdcSchoolCollectionStudent.getSchoolID()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "school", sdcSchoolCollectionStudent.getSchoolID()));
             if(Arrays.stream(SdcInvalidSchoolFundingCode.getSdcInvalidSchoolFundingCode()).noneMatch(val -> val.equals(sdcSchoolCollectionStudent.getSchoolFundingCode()))) {
@@ -154,6 +168,7 @@ public class ChallengeReportsService {
             addStudentIfRequired(gradStudentsMap, fullStudentList, gradStudent.get(0).getGradStudent().getSchoolOfRecordId().toString(), student.getStudentID(), student.getPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames(), null);
         });
 
+        log.debug("Processing student data completed");
         return fullStudentList;
     }
 
@@ -213,6 +228,7 @@ public class ChallengeReportsService {
     }
 
     public DistrictChallengeReportsCounts getChallengeReportCountsForDistrict(String districtID) throws JsonProcessingException {
+        log.debug("getChallengeReportCountsForDistrict");
         var currentReportingPeriod = challengeReportsSessionRepository.findActiveReportingPeriodSession().orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "reportingPeriodSession", null));
 
         var finalStudentDistrictList = new ArrayList<ChallengeReportsStudentRecord>();
@@ -267,6 +283,7 @@ public class ChallengeReportsService {
         });
 
         response.setSchoolsWithCounts(finalCounts);
+        log.debug("getChallengeReportCountsForDistrict complete");
         return response;
     }
 

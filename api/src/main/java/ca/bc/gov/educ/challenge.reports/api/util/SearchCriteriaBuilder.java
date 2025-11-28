@@ -60,7 +60,7 @@ public class SearchCriteriaBuilder {
         // Return the entire list of search criteria
         return searchCriteriaList;
     }
-
+    
     public static List<Map<String, Object>> getChallengeReportGradCriteria(List<String> courseSessions) {
         List<Map<String, Object>> searchCriteriaList = new ArrayList<>();
 
