@@ -104,6 +104,7 @@ public class RestUtils {
     val writeLock = this.schoolLock.writeLock();
     try {
       writeLock.lock();
+      districtToSchoolIDMap.clear();
       for (val school : this.getSchools()) {
         this.schoolMap.put(school.getSchoolId(), school);
         if(districtToSchoolIDMap.containsKey(school.getDistrictId())) {
