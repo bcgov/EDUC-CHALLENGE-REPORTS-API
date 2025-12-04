@@ -165,30 +165,35 @@ public class CSVReportService {
                     .map(IndependentSchoolFundingGroupSnapshot::getSchoolFundingGroupCode)
                     .findFirst()
                     .orElse(null);
+            return foundGroup;
         }
 
         log.debug("foundGroup is: {}", foundGroup);
+        
+        var grade10and11and12FundingGroups = schoolFundingGroups
+                .stream()
+                .filter(group -> group.getSchoolGradeCode().equals("GRADE10") || group.getSchoolGradeCode().equals("GRADE11") || group.getSchoolGradeCode().equals("GRADE12"))
+                .map(IndependentSchoolFundingGroupSnapshot::getSchoolFundingGroupCode)
+                .toList();
 
-        if(foundGroup == null){
-            var grade10and11and12FundingGroups = schoolFundingGroups
-                    .stream()
-                    .filter(group -> group.getSchoolGradeCode().equals("GRADE10") || group.getSchoolGradeCode().equals("GRADE11") || group.getSchoolGradeCode().equals("GRADE12"))
-                    .map(IndependentSchoolFundingGroupSnapshot::getSchoolFundingGroupCode)
-                    .toList();
-
-            log.debug("grade10and11and12FundingGroups is: {}", grade10and11and12FundingGroups);
-            var matchedGroup = grade10and11and12FundingGroups
-                    .stream()
-                    .anyMatch(group -> group.equals("GROUP1") || group.equals("GROUP2"));
-
-            log.debug("matchedGroup is: {}", matchedGroup);
-            
-            if(matchedGroup){
-                return "";
-            }
+        log.debug("grade10and11and12FundingGroups is: {}", grade10and11and12FundingGroups);
+        var matchedGroup1 = grade10and11and12FundingGroups
+                .stream()
+                .anyMatch(group -> group.equals("GROUP1"));
+        
+        if(matchedGroup1) {
+            return "GROUP1";
         }
 
-        return null;
+        var matchedGroup2 = grade10and11and12FundingGroups
+                .stream()
+                .anyMatch(group -> group.equals("GROUP2"));
+
+        if(matchedGroup2) {
+            return "GROUP2";
+        }
+
+        return "";
     }
 
     public DownloadableReportResponse generateDistrictFundingReport() {
