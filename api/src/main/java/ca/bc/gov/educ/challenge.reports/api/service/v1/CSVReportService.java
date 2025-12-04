@@ -135,9 +135,12 @@ public class CSVReportService {
     private List<String> prepareStudentDataForIndependentFundingReport(SchoolTombstone school, ChallengeReportsPostedStudentEntity student, List<IndependentSchoolFundingGroupSnapshot> schoolGroups) {
         String fundingGroup = null;
 
+        log.debug("Course code and level is: {}", student.getCourseCodeAndLevel());
         if(StringUtils.isNotBlank(student.getCourseCodeAndLevel())) {
             fundingGroup = getFundingGroupSnapshotForGrade(schoolGroups, student.getCourseCodeAndLevel().replaceAll("[^0-9]", ""));
         }
+
+        log.debug("Found funding group is: {}", fundingGroup);
 
         return new ArrayList<>(Arrays.asList(
                 school.getMincode(),
@@ -149,6 +152,8 @@ public class CSVReportService {
     }
 
     private String getFundingGroupSnapshotForGrade(List<IndependentSchoolFundingGroupSnapshot> schoolFundingGroups, String gradeCode) {
+        log.debug("schoolFundingGroups is: {}", schoolFundingGroups);
+        log.debug("gradeCode is: {}", gradeCode);
         String foundGroup = null;
         if(StringUtils.isNotBlank(gradeCode)) {
             foundGroup = schoolFundingGroups
@@ -159,6 +164,8 @@ public class CSVReportService {
                     .orElse(null);
         }
 
+        log.debug("foundGroup is: {}", foundGroup);
+
         if(foundGroup == null){
             var grade10and11and12FundingGroups = schoolFundingGroups
                     .stream()
@@ -166,10 +173,13 @@ public class CSVReportService {
                     .map(IndependentSchoolFundingGroupSnapshot::getSchoolFundingGroupCode)
                     .toList();
 
+            log.debug("grade10and11and12FundingGroups is: {}", grade10and11and12FundingGroups);
             var matchedGroup = grade10and11and12FundingGroups
                     .stream()
                     .anyMatch(group -> group.equals("GROUP1") || group.equals("GROUP2"));
 
+            log.debug("matchedGroup is: {}", matchedGroup);
+            
             if(matchedGroup){
                 return "";
             }
@@ -246,9 +256,11 @@ public class CSVReportService {
             });
 
             var schoolGroups = restUtils.getSchoolFundingGroupsForCollection(collection.getContent().get(0).getCollectionID());
+            log.debug("School funding groups: {}", schoolGroups);
             for (var student : finalStudents) {
                 var school = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
                 var filteredSchoolGroups = schoolGroups.stream().filter(schoolGroup -> schoolGroup.getSchoolID().equals(student.getSchoolID().toString())).toList();
+                log.debug("Filtered funding groups: {}", schoolGroups);
                 List<String> csvRowData = prepareStudentDataForIndependentFundingReport(school, student, filteredSchoolGroups);
                 if(csvRowData != null) {
                     csvPrinter.printRecord(csvRowData);
