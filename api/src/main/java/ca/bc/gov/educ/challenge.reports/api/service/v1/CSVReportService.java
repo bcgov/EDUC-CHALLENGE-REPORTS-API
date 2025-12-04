@@ -158,7 +158,10 @@ public class CSVReportService {
         if(StringUtils.isNotBlank(gradeCode)) {
             foundGroup = schoolFundingGroups
                     .stream()
-                    .filter(group -> gradeCode.equals(group.getSchoolGradeCode()))
+                    .filter(group -> {
+                        var schoolGrade = SchoolGradeCodes.findByTypeCode(group.getSchoolGradeCode());
+                        return schoolGrade.filter(schoolGradeCodes -> gradeCode.equals(schoolGradeCodes.getCode())).isPresent();
+                    })
                     .map(IndependentSchoolFundingGroupSnapshot::getSchoolFundingGroupCode)
                     .findFirst()
                     .orElse(null);
@@ -169,7 +172,7 @@ public class CSVReportService {
         if(foundGroup == null){
             var grade10and11and12FundingGroups = schoolFundingGroups
                     .stream()
-                    .filter(group -> group.getSchoolGradeCode().equals("10") || group.getSchoolGradeCode().equals("11") || group.getSchoolGradeCode().equals("12"))
+                    .filter(group -> group.getSchoolGradeCode().equals("GRADE10") || group.getSchoolGradeCode().equals("GRADE11") || group.getSchoolGradeCode().equals("GRADE12"))
                     .map(IndependentSchoolFundingGroupSnapshot::getSchoolFundingGroupCode)
                     .toList();
 
@@ -260,7 +263,6 @@ public class CSVReportService {
             for (var student : finalStudents) {
                 var school = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
                 var filteredSchoolGroups = schoolGroups.stream().filter(schoolGroup -> schoolGroup.getSchoolID().equals(student.getSchoolID().toString())).toList();
-                log.debug("Filtered funding groups: {}", schoolGroups);
                 List<String> csvRowData = prepareStudentDataForIndependentFundingReport(school, student, filteredSchoolGroups);
                 if(csvRowData != null) {
                     csvPrinter.printRecord(csvRowData);
