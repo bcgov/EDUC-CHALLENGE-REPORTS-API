@@ -60,8 +60,8 @@ public class CSVReportService {
             var postedStudents = challengeReportsPostedStudentRepository.findAllByChallengeReportsSessionEntity_ChallengeReportsSessionID(currentReportingPeriod.getChallengeReportsSessionID());
             postedStudents.forEach(student -> {
                 var studentRecord = new ChallengeReportsStudentRecord();
-
-                if(student.getDistrictID().toString().equalsIgnoreCase(districtID)) {
+                var currentSchool = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
+                if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {
                     studentRecord.setSchoolID(student.getSchoolID());
                     studentRecord.setDistrictID(student.getDistrictID());
                     studentRecord.setStudentID(student.getStudentID());
