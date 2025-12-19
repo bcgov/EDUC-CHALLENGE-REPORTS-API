@@ -165,6 +165,16 @@ EMAIL_SUBJECT_FINAL_TO_FUNDING_PUBLIC_TEAM="Final Funding Report for Course Chal
 EMAIL_FROM_FINAL_TO_FUNDING_PUBLIC_TEAM="student.certification@gov.bc.ca"
 EMAIL_TO_FINAL_TO_FUNDING_PUBLIC_TEAM="educ.fundingandallocationunit@gov.bc.ca"
 
+EMAIL_TEMPLATE_FINAL_TO_STUDENT_CERT_TEAM="<!DOCTYPE html><html xmlns:th=\"http://www.thymeleaf.org\"><head><meta charset=\"ISO-8859-1\"><title>Final Funding Report for Course Challenges Sent to Districts</title></head><body>Final challenge reports email for the <span th:text=\"\${$}{schoolYear}\"></span> was sent to:<br><br><span th:text=\"\${$}{districtEmails}\"></span></body></html>"
+EMAIL_SUBJECT_FINAL_TO_STUDENT_CERT_TEAM="Final Funding Report for Course Challenges Sent to Districts"
+EMAIL_FROM_FINAL_TO_STUDENT_CERT_TEAM="student.certification@gov.bc.ca"
+EMAIL_TO_FINAL_TO_STUDENT_CERT_TEAM="student.certification@gov.bc.ca"
+
+EMAIL_TEMPLATE_PRELIMINARY_TO_STUDENT_CERT_TEAM="<!DOCTYPE html><html xmlns:th=\"http://www.thymeleaf.org\"><head><meta charset=\"ISO-8859-1\"><title>Preliminary Funding Report for Course Challenges Sent to Districts</title></head><body>Preliminary challenge reports email for the <span th:text=\"\${$}{schoolYear}\"></span> was sent to:<br><br><span th:text=\"\${$}{districtEmails}\"></span></body></html>"
+EMAIL_SUBJECT_PRELIMINARY_TO_STUDENT_CERT_TEAM="Preliminary Funding Report for Course Challenges Sent to Districts"
+EMAIL_FROM_PRELIMINARY_TO_STUDENT_CERT_TEAM="student.certification@gov.bc.ca"
+EMAIL_TO_PRELIMINARY_TO_STUDENT_CERT_TEAM="student.certification@gov.bc.ca"
+
 SCHEDULED_JOBS_EXTRACT_UNCOMPLETED_SAGAS_CRON="0 0/2 * * * *"
 SCHEDULED_JOBS_EXTRACT_UNCOMPLETED_SAGAS_CRON_LOCK_AT_LEAST_FOR="PT4M"
 SCHEDULED_JOBS_EXTRACT_UNCOMPLETED_SAGAS_CRON_LOCK_AT_MOST_FOR="PT4M"

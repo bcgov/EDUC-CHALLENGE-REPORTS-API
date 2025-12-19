@@ -43,6 +43,24 @@ public class EmailProperties {
 
   @Value("${email.to.final.to.funding.public.team}")
   private String emailToFinalToPublicTeam;
+
+  @Value("${email.subject.final.to.student.cert.team}")
+  private String emailSubjectFinalToStudentCertTeam;
+
+  @Value("${email.from.final.to.student.cert.team}")
+  private String emailFromFinalToStudentCertTeam;
+
+  @Value("${email.to.final.to.student.cert.team}")
+  private String emailToFinalToStudentCertTeam;
+
+  @Value("${email.subject.preliminary.to.student.cert.team}")
+  private String emailSubjectPrelimToStudentCertTeam;
+
+  @Value("${email.from.preliminary.to.student.cert.team}")
+  private String emailFromPrelimToStudentCertTeam;
+
+  @Value("${email.to.preliminary.to.student.cert.team}")
+  private String emailToPrelimToStudentCertTeam;
 }
 
 
