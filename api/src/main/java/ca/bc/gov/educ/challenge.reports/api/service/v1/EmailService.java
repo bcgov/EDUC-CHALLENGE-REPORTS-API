@@ -103,6 +103,54 @@ public class EmailService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void sendPreliminaryEmailToStudentCertTeam() {
+        EmailData emailNotification;
+        var activeSession = challengeReportsService.getChallengeReportActiveSession();
+        final var subject = emailProperties.getEmailSubjectPrelimToStudentCertTeam();
+        final var from = emailProperties.getEmailFromPrelimToStudentCertTeam();
+        final var to = emailProperties.getEmailToPrelimToStudentCertTeam();
+        var toEmails = get1701AdminEmailAddressesForAllDistricts();
+
+        emailNotification = EmailData.builder()
+                .fromEmail(from)
+                .toEmails(Collections.singletonList(to))
+                .bccEmails(toEmails)
+                .subject(subject)
+                .templateName("preliminary.to.student.cert.team")
+                .emailFields(Map.of(
+                        "schoolYear", getYearWithPriorValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
+                        "districtEmails", String.join(", ", toEmails)
+                ))
+                .build();
+
+        sendEmail(emailNotification);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void sendFinalEmailToStudentCertTeam() {
+        EmailData emailNotification;
+        var activeSession = challengeReportsService.getChallengeReportActiveSession();
+        final var subject = emailProperties.getEmailSubjectFinalToStudentCertTeam();
+        final var from = emailProperties.getEmailFromFinalToStudentCertTeam();
+        final var to = emailProperties.getEmailToFinalToStudentCertTeam();
+        var toEmails = get1701AdminEmailAddressesForAllDistricts();
+
+        emailNotification = EmailData.builder()
+                .fromEmail(from)
+                .toEmails(Collections.singletonList(to))
+                .bccEmails(toEmails)
+                .subject(subject)
+                .templateName("final.to.student.cert.team")
+                .emailFields(Map.of(
+                        "schoolYear", getYearWithPriorValue(activeSession.getChallengeReportsPeriod().getSchoolYear()),
+                        "districtEmails", String.join(", ", toEmails)
+                ))
+                .build();
+
+        sendEmail(emailNotification);
+    }
+    
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void sendFinalEmailToIndySchoolsTeam() {
         EmailData emailNotification;
         var activeSession = challengeReportsService.getChallengeReportActiveSession();

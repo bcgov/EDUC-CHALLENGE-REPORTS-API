@@ -16,10 +16,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import static ca.bc.gov.educ.challenge.reports.api.constants.v1.EventOutcome.PRELIMINARY_EMAIL_SENT;
-import static ca.bc.gov.educ.challenge.reports.api.constants.v1.EventOutcome.SESSION_STATUS_UPDATED;
-import static ca.bc.gov.educ.challenge.reports.api.constants.v1.EventType.SEND_OUT_PRELIMINARY_EMAIL;
-import static ca.bc.gov.educ.challenge.reports.api.constants.v1.EventType.UPDATE_SESSION_STATUS;
+import static ca.bc.gov.educ.challenge.reports.api.constants.v1.EventOutcome.*;
+import static ca.bc.gov.educ.challenge.reports.api.constants.v1.EventType.*;
 import static ca.bc.gov.educ.challenge.reports.api.constants.v1.SagaStatusEnum.IN_PROGRESS;
 
 @Component
@@ -41,7 +39,8 @@ public class PreliminaryStageOrchestrator extends BaseOrchestrator<PreliminarySt
         this.stepBuilder()
                 .begin(UPDATE_SESSION_STATUS, this::updateSessionStatus)
                 .step(UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED, SEND_OUT_PRELIMINARY_EMAIL, this::sendPreliminaryStageEmails)
-                .end(SEND_OUT_PRELIMINARY_EMAIL, PRELIMINARY_EMAIL_SENT);
+                .step(SEND_OUT_PRELIMINARY_EMAIL, PRELIMINARY_EMAIL_SENT, SEND_OUT_PRELIMINARY_EMAIL_STUD_CERT, this::sendPreliminaryStageStudCertEmail)
+                .end(SEND_OUT_PRELIMINARY_EMAIL_STUD_CERT, PRELIMINARY_EMAIL_SENT_STUD_CERT);
     }
 
     public void sendPreliminaryStageEmails(final Event event, final ChallengeReportsSagaEntity saga, final PreliminaryStageSagaData sagaData) throws JsonProcessingException {
@@ -55,6 +54,17 @@ public class PreliminaryStageOrchestrator extends BaseOrchestrator<PreliminarySt
         postEvent(saga, sagaData, SEND_OUT_PRELIMINARY_EMAIL, PRELIMINARY_EMAIL_SENT);
     }
 
+    public void sendPreliminaryStageStudCertEmail(final Event event, final ChallengeReportsSagaEntity saga, final PreliminaryStageSagaData sagaData) throws JsonProcessingException {
+        final ChallengeReportsSagaEventEntity eventStates = this.createEventState(saga, event.getEventType(), event.getEventOutcome(), event.getEventPayload());
+        saga.setSagaState(SEND_OUT_PRELIMINARY_EMAIL_STUD_CERT.toString());
+        saga.setStatus(IN_PROGRESS.toString());
+        this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
+
+        emailService.sendPreliminaryEmailToStudentCertTeam();
+
+        postEvent(saga, sagaData, SEND_OUT_PRELIMINARY_EMAIL_STUD_CERT, PRELIMINARY_EMAIL_SENT_STUD_CERT);
+    }
+
     public void updateSessionStatus(final Event event, final ChallengeReportsSagaEntity saga, final PreliminaryStageSagaData sagaData) throws JsonProcessingException {
         final ChallengeReportsSagaEventEntity eventStates = this.createEventState(saga, event.getEventType(), event.getEventOutcome(), event.getEventPayload());
         saga.setSagaState(UPDATE_SESSION_STATUS.toString());
@@ -62,7 +72,6 @@ public class PreliminaryStageOrchestrator extends BaseOrchestrator<PreliminarySt
         this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
 
         challengeReportsService.updateChallengeReportsStatus(ChallengeReportsStatus.PRELIM, sagaData.getUpdateUser());
-        emailService.sendPreliminaryEmailTo1701Admin();
         postEvent(saga, sagaData, UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED);
     }
 
