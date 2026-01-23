@@ -78,7 +78,7 @@ public class SearchCriteriaBuilder {
         eqOrChallengeCrit.put("condition", "AND");
 
         Map<String, Object> finalPercentCrit = new HashMap<>();
-        finalPercentCrit.put("key", "finalPercentage");
+        finalPercentCrit.put("key", "finalPercent");
         finalPercentCrit.put("operation", "gt");
         finalPercentCrit.put("value", "49");
         finalPercentCrit.put("valueType", "INTEGER");
