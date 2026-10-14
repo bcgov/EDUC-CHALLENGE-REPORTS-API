@@ -39,6 +39,21 @@ jobs:
             ${{ runner.os }}-maven-5Jun-
       - name: Run unit tests
         run: mvn -f pom.xml clean package
+      - name: Match coverage paths to the source directory layout
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path('target/site/jacoco/jacoco.xml')
+          tree = ET.parse(report)
+          # Java packages use challenge/reports, but the source folder is challenge.reports.
+          for package in tree.getroot().findall('package'):
+              package.set('name', package.get('name').replace(
+                  'ca/bc/gov/educ/challenge/reports/',
+                  'ca/bc/gov/educ/challenge.reports/', 1))
+          tree.write(report, encoding='utf-8', xml_declaration=True)
+          PY
       - name: setup java 21 for sonar analysis
         uses: actions/setup-java@v6
         with:
