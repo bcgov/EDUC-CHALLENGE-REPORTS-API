@@ -62,7 +62,7 @@ public class EmailService {
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
-                .toEmails(Collections.singletonList(to))
+                .toEmails(Arrays.stream(to.split(",")).map(String::trim).filter(address -> !address.isEmpty()).distinct().toList())
                 .bccEmails(toEmails)
                 .subject(subject)
                 .templateName("preliminary.to.super")
@@ -87,7 +87,7 @@ public class EmailService {
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
-                .toEmails(Collections.singletonList(to))
+                .toEmails(Arrays.stream(to.split(",")).map(String::trim).filter(address -> !address.isEmpty()).distinct().toList())
                 .bccEmails(toEmails)
                 .subject(subject)
                 .templateName("final.to.super")
@@ -113,7 +113,7 @@ public class EmailService {
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
-                .toEmails(Collections.singletonList(to))
+                .toEmails(Arrays.stream(to.split(",")).map(String::trim).filter(address -> !address.isEmpty()).distinct().toList())
                 .bccEmails(toEmails)
                 .subject(subject)
                 .templateName("preliminary.to.student.cert.team")
@@ -137,7 +137,7 @@ public class EmailService {
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
-                .toEmails(Collections.singletonList(to))
+                .toEmails(Arrays.stream(to.split(",")).map(String::trim).filter(address -> !address.isEmpty()).distinct().toList())
                 .bccEmails(toEmails)
                 .subject(subject)
                 .templateName("final.to.student.cert.team")
@@ -160,7 +160,7 @@ public class EmailService {
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
-                .toEmails(Collections.singletonList(to))
+                .toEmails(Arrays.stream(to.split(",")).map(String::trim).filter(address -> !address.isEmpty()).distinct().toList())
                 .subject(subject)
                 .templateName("final.to.funding.indy.team")
                 .emailFields(Map.of(
@@ -181,7 +181,7 @@ public class EmailService {
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
-                .toEmails(Collections.singletonList(to))
+                .toEmails(Arrays.stream(to.split(",")).map(String::trim).filter(address -> !address.isEmpty()).distinct().toList())
                 .subject(subject)
                 .templateName("final.to.funding.public.team")
                 .emailFields(Map.of(
