@@ -62,7 +62,7 @@ public class EmailService {
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
-                .toEmails(Arrays.stream(to.split(",")).map(String::trim).filter(address -> !address.isEmpty()).distinct().toList())
+                .toEmails(parseEmailRecipients(to))
                 .bccEmails(toEmails)
                 .subject(subject)
                 .templateName("preliminary.to.super")
@@ -87,7 +87,7 @@ public class EmailService {
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
-                .toEmails(Arrays.stream(to.split(",")).map(String::trim).filter(address -> !address.isEmpty()).distinct().toList())
+                .toEmails(parseEmailRecipients(to))
                 .bccEmails(toEmails)
                 .subject(subject)
                 .templateName("final.to.super")
@@ -113,7 +113,7 @@ public class EmailService {
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
-                .toEmails(Arrays.stream(to.split(",")).map(String::trim).filter(address -> !address.isEmpty()).distinct().toList())
+                .toEmails(parseEmailRecipients(to))
                 .bccEmails(toEmails)
                 .subject(subject)
                 .templateName("preliminary.to.student.cert.team")
@@ -137,7 +137,7 @@ public class EmailService {
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
-                .toEmails(Arrays.stream(to.split(",")).map(String::trim).filter(address -> !address.isEmpty()).distinct().toList())
+                .toEmails(parseEmailRecipients(to))
                 .bccEmails(toEmails)
                 .subject(subject)
                 .templateName("final.to.student.cert.team")
@@ -160,7 +160,7 @@ public class EmailService {
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
-                .toEmails(Arrays.stream(to.split(",")).map(String::trim).filter(address -> !address.isEmpty()).distinct().toList())
+                .toEmails(parseEmailRecipients(to))
                 .subject(subject)
                 .templateName("final.to.funding.indy.team")
                 .emailFields(Map.of(
@@ -181,7 +181,7 @@ public class EmailService {
 
         emailNotification = EmailData.builder()
                 .fromEmail(from)
-                .toEmails(Arrays.stream(to.split(",")).map(String::trim).filter(address -> !address.isEmpty()).distinct().toList())
+                .toEmails(parseEmailRecipients(to))
                 .subject(subject)
                 .templateName("final.to.funding.public.team")
                 .emailFields(Map.of(
@@ -205,6 +205,14 @@ public class EmailService {
                             }
                         })));
         return emailSet.stream().toList();
+    }
+
+    private List<String> parseEmailRecipients(String recipients) {
+        return Arrays.stream(recipients.split(","))
+                .map(String::trim)
+                .filter(address -> !address.isEmpty())
+                .distinct()
+                .toList();
     }
 
     private String getBlankValueIfRequired(String s) {
