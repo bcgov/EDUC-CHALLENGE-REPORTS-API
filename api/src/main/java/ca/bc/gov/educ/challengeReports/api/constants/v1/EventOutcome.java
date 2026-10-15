@@ -1,0 +1,19 @@
+package ca.bc.gov.educ.challengeReports.api.constants.v1;
+
+/**
+ * The enum Event outcome.
+ */
+public enum EventOutcome {
+    INITIATE_SUCCESS,
+    SAGA_COMPLETED,
+    PRELIMINARY_EMAIL_SENT,
+    PRELIMINARY_EMAIL_SENT_STUD_CERT,
+    STUDENTS_FETCHED_AND_STORED,
+    FINAL_EMAIL_SENT,
+    FINAL_EMAIL_SENT_STUD_CERT,
+    INDY_TEAM_EMAIL_SENT,
+    PUBLIC_TEAM_EMAIL_SENT,
+    SESSION_STATUS_UPDATED,
+    STUDENTS_FOUND,
+    STUDENTS_NOT_FOUND
+}
