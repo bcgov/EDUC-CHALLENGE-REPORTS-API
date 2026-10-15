@@ -1,3 +1,8 @@
 /api/src/main/resources/application-local.properties
 .idea/
 target/
+Session.vim
+.vim/
+.direnv
+.envrc
+shell.nix
