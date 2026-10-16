@@ -5,13 +5,15 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Component
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class GraduationStudentPaginationRecord extends BaseRequest {
-
     private String pen;
     private UUID schoolOfRecordId;
     private String studentGrade;
