@@ -18,6 +18,7 @@ import ca.bc.gov.educ.challengeReports.api.struct.v1.external.gradstudent.v1.Gra
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.gradstudent.v1.StudentCoursePagination;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.institute.v1.SchoolTombstone;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.Collection;
+import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.studentapi.v1.Student;
 import ca.bc.gov.educ.challengeReports.api.util.JsonUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -35,6 +36,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -207,7 +209,7 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
     studentCoursePagination.setStudentCourseID(UUID.randomUUID());
     studentCoursePagination.setCourseSession("202507");
 
-    when(this.restUtils.getChallengeReportGradStudentCoursesForYear(anyList(), anyList())).thenReturn(List.of(studentCoursePagination));
+    when(this.restUtils.getChallengeReportGradStudentCoursesForYear(anyList())).thenReturn(List.of(studentCoursePagination));
 
     Collection coll = new Collection();
     coll.setCollectionID(UUID.randomUUID().toString());
@@ -246,6 +248,56 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
 
     assertThat(summary1).isNotNull();
     assertThat(summary1.getSchoolsWithCounts().size()).isEqualTo(1);
+  }
+
+  @Test
+  void testGetDistrictChallengeReportCounts_PublicSchoolFundingCode20_IsCounted() throws Exception {
+    final GrantedAuthority grantedAuthority = () -> "SCOPE_READ_CHALLENGE_REPORTS";
+    final SecurityMockMvcRequestPostProcessors.OidcLoginRequestPostProcessor mockAuthority = oidcLogin().authorities(grantedAuthority);
+
+    var reportingPeriod = challengeReportsReportingPeriodRepository.save(createMockReportingPeriod());
+    challengeReportsSessionRepository.save(createMockSession(reportingPeriod));
+
+    SchoolTombstone schoolTombstone = this.createMockSchool();
+    var studentID = UUID.randomUUID();
+    GraduationStudentPaginationRecord gradStudent = new GraduationStudentPaginationRecord();
+    gradStudent.setStudentID(studentID);
+    gradStudent.setSchoolOfRecordId(UUID.fromString(schoolTombstone.getSchoolId()));
+
+    var studentCoursePagination = new StudentCoursePagination();
+    studentCoursePagination.setCourseID("MATH12");
+    studentCoursePagination.setEquivOrChallenge("C");
+    studentCoursePagination.setGradStudent(gradStudent);
+    studentCoursePagination.setFinalPercent(66);
+    studentCoursePagination.setCourseSession("202507");
+    when(this.restUtils.getChallengeReportGradStudentCoursesForYear(anyList())).thenReturn(List.of(studentCoursePagination));
+
+    Collection coll = new Collection();
+    coll.setCollectionID(UUID.randomUUID().toString());
+    when(this.restUtils.getLastSeptemberCollection(anyString())).thenReturn(new PaginatedResponse<>(List.of(coll)));
+    when(this.restUtils.getLastFebruaryCollection(anyString())).thenReturn(new PaginatedResponse<>(List.of(coll)));
+
+    var septemberEnrolment = new SdcSchoolCollectionStudent();
+    septemberEnrolment.setAssignedStudentId(studentID.toString());
+    septemberEnrolment.setSchoolID(schoolTombstone.getSchoolId());
+    septemberEnrolment.setFte(BigDecimal.ONE);
+    septemberEnrolment.setSchoolFundingCode("20");
+    when(this.restUtils.get1701DataForStudents(anyString(), anyList())).thenReturn(List.of(septemberEnrolment)).thenReturn(List.of());
+    when(this.restUtils.getStudents(any(), anySet())).thenReturn(List.of());
+    when(this.restUtils.getSchoolBySchoolID(anyString())).thenReturn(Optional.of(schoolTombstone));
+
+    var course = new CourseCode();
+    course.setCourseID("MATH12");
+    course.setExternalCode("MATH12");
+    when(this.restUtils.getCoregCourseByID(anyString())).thenReturn(Optional.of(course));
+
+    var resultActions = this.mockMvc.perform(get(URL.BASE_URL + "/district/" + schoolTombstone.getDistrictId()).with(mockAuthority).contentType(APPLICATION_JSON)).andDo(print()).andExpect(status().isOk());
+
+    val summary = objectMapper.readValue(resultActions.andReturn().getResponse().getContentAsByteArray(), new TypeReference<DistrictChallengeReportsCounts>() {
+    });
+
+    assertThat(summary.getSchoolsWithCounts()).hasSize(1);
+    assertThat(summary.getSchoolsWithCounts().get(0).getCount()).isEqualTo("1");
   }
 
   public SchoolTombstone createMockSchool() {
