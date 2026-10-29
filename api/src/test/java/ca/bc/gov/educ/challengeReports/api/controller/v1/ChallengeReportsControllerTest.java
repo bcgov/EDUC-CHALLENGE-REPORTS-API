@@ -12,6 +12,7 @@ import ca.bc.gov.educ.challengeReports.api.repository.v1.ChallengeReportsSession
 import ca.bc.gov.educ.challengeReports.api.rest.RestUtils;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.ChallengeReportsSession;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.DistrictChallengeReportsCounts;
+import ca.bc.gov.educ.challengeReports.api.struct.v1.DownloadableReportResponse;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.PaginatedResponse;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.coreg.v1.CourseCode;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.gradstudent.v1.GraduationStudentPaginationRecord;
@@ -37,7 +38,9 @@ import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequ
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -252,17 +255,73 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
 
   @Test
   void testGetDistrictChallengeReportCounts_PublicSchoolFundingCode20_IsCounted() throws Exception {
-    final GrantedAuthority grantedAuthority = () -> "SCOPE_READ_CHALLENGE_REPORTS";
-    final SecurityMockMvcRequestPostProcessors.OidcLoginRequestPostProcessor mockAuthority = oidcLogin().authorities(grantedAuthority);
+    createPrelimSession();
+    var publicSchool = createMockSchool();
+    mockSchools(publicSchool);
+    var studentID = mockGradChallengeStudent(publicSchool);
+    mockSeptemberEnrolments(createEnrolment(studentID, publicSchool, "1.0000", "20"));
 
+    var counts = getDistrictCounts(publicSchool.getDistrictId());
+
+    assertThat(counts.getSchoolsWithCounts()).hasSize(1);
+    assertThat(counts.getSchoolsWithCounts().get(0).getCount()).isEqualTo("1");
+  }
+
+  @Test
+  void testGetDistrictChallengeReportCounts_Code14AndIndependentCode20Enrolments_AreSkipped() throws Exception {
+    createPrelimSession();
+    var publicSchoolWithCode14 = createMockSchool();
+    var independentSchoolWithCode20 = createMockSchool();
+    independentSchoolWithCode20.setSchoolCategoryCode("INDEPEND");
+    independentSchoolWithCode20.setDistrictId(publicSchoolWithCode14.getDistrictId());
+    var publicSchoolWithLowerFte = createMockSchool();
+    publicSchoolWithLowerFte.setDistrictId(publicSchoolWithCode14.getDistrictId());
+    mockSchools(publicSchoolWithCode14, independentSchoolWithCode20, publicSchoolWithLowerFte);
+    var studentID = mockGradChallengeStudent(publicSchoolWithCode14);
+    mockSeptemberEnrolments(
+        createEnrolment(studentID, publicSchoolWithCode14, "1.0000", "14"),
+        createEnrolment(studentID, independentSchoolWithCode20, "1.0000", "20"),
+        createEnrolment(studentID, publicSchoolWithLowerFte, "0.5000", null));
+
+    var counts = getDistrictCounts(publicSchoolWithCode14.getDistrictId());
+
+    assertThat(counts.getSchoolsWithCounts()).hasSize(1);
+    assertThat(counts.getSchoolsWithCounts().get(0).getSchoolID()).isEqualTo(publicSchoolWithLowerFte.getSchoolId());
+  }
+
+  @Test
+  void testGetDownloadableChallengeReport_Prelim_ReturnsDistrictStudents() throws Exception {
+    createPrelimSession();
+    var publicSchool = createMockSchool();
+    mockSchools(publicSchool);
+    var studentID = mockGradChallengeStudent(publicSchool);
+    mockSeptemberEnrolments(createEnrolment(studentID, publicSchool, "1.0000", null));
+
+    final GrantedAuthority grantedAuthority = () -> "SCOPE_READ_CHALLENGE_REPORTS";
+    var resultActions = this.mockMvc.perform(get(URL.BASE_URL + "/district/" + publicSchool.getDistrictId() + "/download").with(oidcLogin().authorities(grantedAuthority)).contentType(APPLICATION_JSON)).andDo(print()).andExpect(status().isOk());
+    val report = objectMapper.readValue(resultActions.andReturn().getResponse().getContentAsByteArray(), DownloadableReportResponse.class);
+    var csv = new String(Base64.getDecoder().decode(report.getDocumentData()), StandardCharsets.UTF_8);
+
+    assertThat(csv).contains(publicSchool.getMincode()).contains("MATH12").contains("123456789");
+  }
+
+  private void createPrelimSession() {
     var reportingPeriod = challengeReportsReportingPeriodRepository.save(createMockReportingPeriod());
     challengeReportsSessionRepository.save(createMockSession(reportingPeriod));
+  }
 
-    SchoolTombstone schoolTombstone = this.createMockSchool();
+  private void mockSchools(SchoolTombstone... schools) {
+    for (var school : schools) {
+      when(this.restUtils.getSchoolBySchoolID(school.getSchoolId())).thenReturn(Optional.of(school));
+    }
+  }
+
+  private UUID mockGradChallengeStudent(SchoolTombstone schoolOfRecord) throws Exception {
     var studentID = UUID.randomUUID();
     GraduationStudentPaginationRecord gradStudent = new GraduationStudentPaginationRecord();
+    gradStudent.setPen("123456789");
     gradStudent.setStudentID(studentID);
-    gradStudent.setSchoolOfRecordId(UUID.fromString(schoolTombstone.getSchoolId()));
+    gradStudent.setSchoolOfRecordId(UUID.fromString(schoolOfRecord.getSchoolId()));
 
     var studentCoursePagination = new StudentCoursePagination();
     studentCoursePagination.setCourseID("MATH12");
@@ -276,28 +335,34 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
     coll.setCollectionID(UUID.randomUUID().toString());
     when(this.restUtils.getLastSeptemberCollection(anyString())).thenReturn(new PaginatedResponse<>(List.of(coll)));
     when(this.restUtils.getLastFebruaryCollection(anyString())).thenReturn(new PaginatedResponse<>(List.of(coll)));
-
-    var septemberEnrolment = new SdcSchoolCollectionStudent();
-    septemberEnrolment.setAssignedStudentId(studentID.toString());
-    septemberEnrolment.setSchoolID(schoolTombstone.getSchoolId());
-    septemberEnrolment.setFte(BigDecimal.ONE);
-    septemberEnrolment.setSchoolFundingCode("20");
-    when(this.restUtils.get1701DataForStudents(anyString(), anyList())).thenReturn(List.of(septemberEnrolment)).thenReturn(List.of());
     when(this.restUtils.getStudents(any(), anySet())).thenReturn(List.of());
-    when(this.restUtils.getSchoolBySchoolID(anyString())).thenReturn(Optional.of(schoolTombstone));
 
     var course = new CourseCode();
     course.setCourseID("MATH12");
     course.setExternalCode("MATH12");
     when(this.restUtils.getCoregCourseByID(anyString())).thenReturn(Optional.of(course));
+    return studentID;
+  }
 
-    var resultActions = this.mockMvc.perform(get(URL.BASE_URL + "/district/" + schoolTombstone.getDistrictId()).with(mockAuthority).contentType(APPLICATION_JSON)).andDo(print()).andExpect(status().isOk());
+  private void mockSeptemberEnrolments(SdcSchoolCollectionStudent... enrolments) {
+    // Second call is the February lookup, which only covers students missing from September
+    when(this.restUtils.get1701DataForStudents(anyString(), anyList())).thenReturn(List.of(enrolments)).thenReturn(List.of());
+  }
 
-    val summary = objectMapper.readValue(resultActions.andReturn().getResponse().getContentAsByteArray(), new TypeReference<DistrictChallengeReportsCounts>() {
-    });
+  private SdcSchoolCollectionStudent createEnrolment(UUID studentID, SchoolTombstone school, String fte, String schoolFundingCode) {
+    var enrolment = new SdcSchoolCollectionStudent();
+    enrolment.setAssignedStudentId(studentID.toString());
+    enrolment.setAssignedPen("123456789");
+    enrolment.setSchoolID(school.getSchoolId());
+    enrolment.setFte(new BigDecimal(fte));
+    enrolment.setSchoolFundingCode(schoolFundingCode);
+    return enrolment;
+  }
 
-    assertThat(summary.getSchoolsWithCounts()).hasSize(1);
-    assertThat(summary.getSchoolsWithCounts().get(0).getCount()).isEqualTo("1");
+  private DistrictChallengeReportsCounts getDistrictCounts(String districtID) throws Exception {
+    final GrantedAuthority grantedAuthority = () -> "SCOPE_READ_CHALLENGE_REPORTS";
+    var resultActions = this.mockMvc.perform(get(URL.BASE_URL + "/district/" + districtID).with(oidcLogin().authorities(grantedAuthority)).contentType(APPLICATION_JSON)).andDo(print()).andExpect(status().isOk());
+    return objectMapper.readValue(resultActions.andReturn().getResponse().getContentAsByteArray(), DistrictChallengeReportsCounts.class);
   }
 
   public SchoolTombstone createMockSchool() {
