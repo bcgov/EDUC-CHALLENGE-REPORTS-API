@@ -39,6 +39,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
@@ -46,6 +47,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -134,6 +136,7 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
     structSession.setCreateDate(null);
     structSession.setUpdateDate(null);
     this.mockMvc.perform(post(URL.BASE_URL + "/preliminaryStage/ABC").with(mockAuthority).contentType(APPLICATION_JSON)).andDo(print()).andExpect(status().isAccepted());
+    waitForSagaFirstStep();
 
     var sagas = challengeReportsSagaRepository.findAll();
 
@@ -154,6 +157,7 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
     structSession.setCreateDate(null);
     structSession.setUpdateDate(null);
     this.mockMvc.perform(post(URL.BASE_URL + "/finalStage/ABC").with(mockAuthority).contentType(APPLICATION_JSON)).andDo(print()).andExpect(status().isAccepted());
+    waitForSagaFirstStep();
 
     var sagas = challengeReportsSagaRepository.findAll();
 
@@ -303,6 +307,11 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
     var csv = new String(Base64.getDecoder().decode(report.getDocumentData()), StandardCharsets.UTF_8);
 
     assertThat(csv).contains(publicSchool.getMincode()).contains("MATH12").contains("123456789");
+  }
+
+  // startSaga runs its first step async; wait for it to commit so it can't race the next test's cleanup in setUp
+  private void waitForSagaFirstStep() {
+    await().atMost(Duration.ofSeconds(10)).until(() -> challengeReportsSagaEventRepository.count() > 0);
   }
 
   private void createPrelimSession() {
