@@ -12,12 +12,14 @@ import ca.bc.gov.educ.challengeReports.api.repository.v1.ChallengeReportsSession
 import ca.bc.gov.educ.challengeReports.api.rest.RestUtils;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.ChallengeReportsSession;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.DistrictChallengeReportsCounts;
+import ca.bc.gov.educ.challengeReports.api.struct.v1.DownloadableReportResponse;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.PaginatedResponse;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.coreg.v1.CourseCode;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.gradstudent.v1.GraduationStudentPaginationRecord;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.gradstudent.v1.StudentCoursePagination;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.institute.v1.SchoolTombstone;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.Collection;
+import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.studentapi.v1.Student;
 import ca.bc.gov.educ.challengeReports.api.util.JsonUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -35,12 +37,17 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -129,6 +136,7 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
     structSession.setCreateDate(null);
     structSession.setUpdateDate(null);
     this.mockMvc.perform(post(URL.BASE_URL + "/preliminaryStage/ABC").with(mockAuthority).contentType(APPLICATION_JSON)).andDo(print()).andExpect(status().isAccepted());
+    waitForSagaFirstStep();
 
     var sagas = challengeReportsSagaRepository.findAll();
 
@@ -149,6 +157,7 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
     structSession.setCreateDate(null);
     structSession.setUpdateDate(null);
     this.mockMvc.perform(post(URL.BASE_URL + "/finalStage/ABC").with(mockAuthority).contentType(APPLICATION_JSON)).andDo(print()).andExpect(status().isAccepted());
+    waitForSagaFirstStep();
 
     var sagas = challengeReportsSagaRepository.findAll();
 
@@ -207,7 +216,7 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
     studentCoursePagination.setStudentCourseID(UUID.randomUUID());
     studentCoursePagination.setCourseSession("202507");
 
-    when(this.restUtils.getChallengeReportGradStudentCoursesForYear(anyList(), anyList())).thenReturn(List.of(studentCoursePagination));
+    when(this.restUtils.getChallengeReportGradStudentCoursesForYear(anyList())).thenReturn(List.of(studentCoursePagination));
 
     Collection coll = new Collection();
     coll.setCollectionID(UUID.randomUUID().toString());
@@ -246,6 +255,123 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
 
     assertThat(summary1).isNotNull();
     assertThat(summary1.getSchoolsWithCounts().size()).isEqualTo(1);
+  }
+
+  @Test
+  void testGetDistrictChallengeReportCounts_PublicSchoolFundingCode20_IsCounted() throws Exception {
+    createPrelimSession();
+    var publicSchool = createMockSchool();
+    mockSchools(publicSchool);
+    var studentID = mockGradChallengeStudent(publicSchool);
+    mockSeptemberEnrolments(createEnrolment(studentID, publicSchool, "1.0000", "20"));
+
+    var counts = getDistrictCounts(publicSchool.getDistrictId());
+
+    assertThat(counts.getSchoolsWithCounts()).hasSize(1);
+    assertThat(counts.getSchoolsWithCounts().get(0).getCount()).isEqualTo("1");
+  }
+
+  @Test
+  void testGetDistrictChallengeReportCounts_Code14AndIndependentCode20Enrolments_AreSkipped() throws Exception {
+    createPrelimSession();
+    var publicSchoolWithCode14 = createMockSchool();
+    var independentSchoolWithCode20 = createMockSchool();
+    independentSchoolWithCode20.setSchoolCategoryCode("INDEPEND");
+    independentSchoolWithCode20.setDistrictId(publicSchoolWithCode14.getDistrictId());
+    var publicSchoolWithLowerFte = createMockSchool();
+    publicSchoolWithLowerFte.setDistrictId(publicSchoolWithCode14.getDistrictId());
+    mockSchools(publicSchoolWithCode14, independentSchoolWithCode20, publicSchoolWithLowerFte);
+    var studentID = mockGradChallengeStudent(publicSchoolWithCode14);
+    mockSeptemberEnrolments(
+        createEnrolment(studentID, publicSchoolWithCode14, "1.0000", "14"),
+        createEnrolment(studentID, independentSchoolWithCode20, "1.0000", "20"),
+        createEnrolment(studentID, publicSchoolWithLowerFte, "0.5000", null));
+
+    var counts = getDistrictCounts(publicSchoolWithCode14.getDistrictId());
+
+    assertThat(counts.getSchoolsWithCounts()).hasSize(1);
+    assertThat(counts.getSchoolsWithCounts().get(0).getSchoolID()).isEqualTo(publicSchoolWithLowerFte.getSchoolId());
+  }
+
+  @Test
+  void testGetDownloadableChallengeReport_Prelim_ReturnsDistrictStudents() throws Exception {
+    createPrelimSession();
+    var publicSchool = createMockSchool();
+    mockSchools(publicSchool);
+    var studentID = mockGradChallengeStudent(publicSchool);
+    mockSeptemberEnrolments(createEnrolment(studentID, publicSchool, "1.0000", null));
+
+    final GrantedAuthority grantedAuthority = () -> "SCOPE_READ_CHALLENGE_REPORTS";
+    var resultActions = this.mockMvc.perform(get(URL.BASE_URL + "/district/" + publicSchool.getDistrictId() + "/download").with(oidcLogin().authorities(grantedAuthority)).contentType(APPLICATION_JSON)).andDo(print()).andExpect(status().isOk());
+    val report = objectMapper.readValue(resultActions.andReturn().getResponse().getContentAsByteArray(), DownloadableReportResponse.class);
+    var csv = new String(Base64.getDecoder().decode(report.getDocumentData()), StandardCharsets.UTF_8);
+
+    assertThat(csv).contains(publicSchool.getMincode()).contains("MATH12").contains("123456789");
+  }
+
+  // startSaga runs its first step async; wait for it to commit so it can't race the next test's cleanup in setUp
+  private void waitForSagaFirstStep() {
+    await().atMost(Duration.ofSeconds(10)).until(() -> challengeReportsSagaEventRepository.count() > 0);
+  }
+
+  private void createPrelimSession() {
+    var reportingPeriod = challengeReportsReportingPeriodRepository.save(createMockReportingPeriod());
+    challengeReportsSessionRepository.save(createMockSession(reportingPeriod));
+  }
+
+  private void mockSchools(SchoolTombstone... schools) {
+    for (var school : schools) {
+      when(this.restUtils.getSchoolBySchoolID(school.getSchoolId())).thenReturn(Optional.of(school));
+    }
+  }
+
+  private UUID mockGradChallengeStudent(SchoolTombstone schoolOfRecord) throws Exception {
+    var studentID = UUID.randomUUID();
+    GraduationStudentPaginationRecord gradStudent = new GraduationStudentPaginationRecord();
+    gradStudent.setPen("123456789");
+    gradStudent.setStudentID(studentID);
+    gradStudent.setSchoolOfRecordId(UUID.fromString(schoolOfRecord.getSchoolId()));
+
+    var studentCoursePagination = new StudentCoursePagination();
+    studentCoursePagination.setCourseID("MATH12");
+    studentCoursePagination.setEquivOrChallenge("C");
+    studentCoursePagination.setGradStudent(gradStudent);
+    studentCoursePagination.setFinalPercent(66);
+    studentCoursePagination.setCourseSession("202507");
+    when(this.restUtils.getChallengeReportGradStudentCoursesForYear(anyList())).thenReturn(List.of(studentCoursePagination));
+
+    Collection coll = new Collection();
+    coll.setCollectionID(UUID.randomUUID().toString());
+    when(this.restUtils.getLastSeptemberCollection(anyString())).thenReturn(new PaginatedResponse<>(List.of(coll)));
+    when(this.restUtils.getLastFebruaryCollection(anyString())).thenReturn(new PaginatedResponse<>(List.of(coll)));
+    when(this.restUtils.getStudents(any(), anySet())).thenReturn(List.of());
+
+    var course = new CourseCode();
+    course.setCourseID("MATH12");
+    course.setExternalCode("MATH12");
+    when(this.restUtils.getCoregCourseByID(anyString())).thenReturn(Optional.of(course));
+    return studentID;
+  }
+
+  private void mockSeptemberEnrolments(SdcSchoolCollectionStudent... enrolments) {
+    // Second call is the February lookup, which only covers students missing from September
+    when(this.restUtils.get1701DataForStudents(anyString(), anyList())).thenReturn(List.of(enrolments)).thenReturn(List.of());
+  }
+
+  private SdcSchoolCollectionStudent createEnrolment(UUID studentID, SchoolTombstone school, String fte, String schoolFundingCode) {
+    var enrolment = new SdcSchoolCollectionStudent();
+    enrolment.setAssignedStudentId(studentID.toString());
+    enrolment.setAssignedPen("123456789");
+    enrolment.setSchoolID(school.getSchoolId());
+    enrolment.setFte(new BigDecimal(fte));
+    enrolment.setSchoolFundingCode(schoolFundingCode);
+    return enrolment;
+  }
+
+  private DistrictChallengeReportsCounts getDistrictCounts(String districtID) throws Exception {
+    final GrantedAuthority grantedAuthority = () -> "SCOPE_READ_CHALLENGE_REPORTS";
+    var resultActions = this.mockMvc.perform(get(URL.BASE_URL + "/district/" + districtID).with(oidcLogin().authorities(grantedAuthority)).contentType(APPLICATION_JSON)).andDo(print()).andExpect(status().isOk());
+    return objectMapper.readValue(resultActions.andReturn().getResponse().getContentAsByteArray(), DistrictChallengeReportsCounts.class);
   }
 
   public SchoolTombstone createMockSchool() {

@@ -54,7 +54,7 @@ public class FinalStageOrchestrator extends BaseOrchestrator<FinalStageSagaData>
         this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
 
         var currentSession = challengeReportsService.getChallengeReportActiveSession();
-        var students = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentSession, null);
+        var students = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentSession);
         challengeReportsService.saveAllPostedStudents(students, currentSession, sagaData.getUpdateUser());
 
         postEvent(saga, sagaData, FETCH_AND_STORE_STUDENTS, STUDENTS_FETCHED_AND_STORED);

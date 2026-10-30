@@ -57,7 +57,6 @@ public class RestUtils {
   private final Map<String, SchoolTombstone> schoolMap = new ConcurrentHashMap<>();
   private final Map<String, CourseCode> coregMap = new ConcurrentHashMap<>();
   private final Map<String, District> districtMap = new ConcurrentHashMap<>();
-  private final Map<String, List<String>> districtToSchoolIDMap = new ConcurrentHashMap<>();
   private final Map<UUID, List<EdxUser>> edxDistrictUserMap = new ConcurrentHashMap<>();
   private final WebClient webClient;
   private final MessagePublisher messagePublisher;
@@ -104,15 +103,8 @@ public class RestUtils {
     val writeLock = this.schoolLock.writeLock();
     try {
       writeLock.lock();
-      districtToSchoolIDMap.clear();
       for (val school : this.getSchools()) {
         this.schoolMap.put(school.getSchoolId(), school);
-        if(districtToSchoolIDMap.containsKey(school.getDistrictId())) {
-          districtToSchoolIDMap.get(school.getDistrictId()).add(school.getSchoolId());
-        }else{
-          districtToSchoolIDMap.put(school.getDistrictId(), new ArrayList<>());
-          districtToSchoolIDMap.get(school.getDistrictId()).add(school.getSchoolId());
-        }
       }
     } catch (Exception ex) {
       log.error("Unable to load map cache school ", ex);
@@ -240,15 +232,6 @@ public class RestUtils {
     return Optional.ofNullable(this.schoolMap.get(schoolID));
   }
 
-  public List<String> getSchoolsIDsByDistrictID(final String districtID) {
-    if (this.districtToSchoolIDMap.isEmpty()) {
-      log.info("School map is empty reloading schools");
-      this.populateSchoolMap();
-    }
-    return this.districtToSchoolIDMap.get(districtID);
-  }
-
-
   public Optional<District> getDistrictByDistrictID(final String districtID) {
     if (this.districtMap.isEmpty()) {
       log.info("District map is empty reloading schools");
@@ -330,17 +313,11 @@ public class RestUtils {
                     .collect(Collectors.toList());
   }
 
-  public List<StudentCoursePagination> getChallengeReportGradStudentCoursesForYear(List<String> courseSessions, List<String> schoolIDs) throws JsonProcessingException {
+  public List<StudentCoursePagination> getChallengeReportGradStudentCoursesForYear(List<String> courseSessions) throws JsonProcessingException {
     int pageSize = 5000;
     int pageNumber = 0;
 
-    List<Map<String, Object>> searchCriteriaList;
-    if(schoolIDs == null || schoolIDs.isEmpty()) {
-      searchCriteriaList = SearchCriteriaBuilder.getChallengeReportGradCriteria(courseSessions);  
-    }else{
-      searchCriteriaList = SearchCriteriaBuilder.getChallengeReportGradCriteria(courseSessions, schoolIDs);
-    }
-    
+    var searchCriteriaList = SearchCriteriaBuilder.getChallengeReportGradCriteria(courseSessions);
 
     String searchJson = objectMapper.writeValueAsString(searchCriteriaList);
     String encodedSearchJson = URLEncoder.encode(searchJson, StandardCharsets.UTF_8);

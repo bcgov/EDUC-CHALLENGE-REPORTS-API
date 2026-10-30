@@ -95,16 +95,12 @@ public class ChallengeReportsService {
         this.challengeReportsSessionRepository.save(currentSession);
     }
 
-    public List<ChallengeReportsStudentRecord> getAndGeneratePreliminaryChallengeStudentList(ChallengeReportsSessionEntity challengeReportsSession, String districtID) throws JsonProcessingException {
+    public List<ChallengeReportsStudentRecord> getAndGeneratePreliminaryChallengeStudentList(ChallengeReportsSessionEntity challengeReportsSession) throws JsonProcessingException {
         var fullStudentList = new ArrayList<ChallengeReportsStudentRecord>();
         var schoolYear = challengeReportsSession.getChallengeReportsPeriod().getSchoolYear();
-        List<String> schoolIDs = null;
-        if(districtID != null) {
-            schoolIDs = restUtils.getSchoolsIDsByDistrictID(districtID);
-        }
-        
+        // Always province-wide: a student is reported under their highest FTE school, which can be in a different district than their school of record
         log.debug("Calling out for grad students for challengeReportsSession {}", challengeReportsSession);
-        var gradStudents = restUtils.getChallengeReportGradStudentCoursesForYear(getCourseSessionValues(schoolYear), schoolIDs);
+        var gradStudents = restUtils.getChallengeReportGradStudentCoursesForYear(getCourseSessionValues(schoolYear));
         log.debug("{} GRAD students returned", gradStudents.size());
 
         Map<String, List<StudentCoursePagination>> gradStudentsMap = gradStudents.stream().collect(Collectors.groupingBy(studentCourse -> studentCourse.getGradStudent().getStudentID().toString()));
@@ -140,7 +136,7 @@ public class ChallengeReportsService {
         
         allSdcStudents.forEach(sdcSchoolCollectionStudent -> {
             var school = restUtils.getSchoolBySchoolID(sdcSchoolCollectionStudent.getSchoolID()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "school", sdcSchoolCollectionStudent.getSchoolID()));
-            if(Arrays.stream(SdcInvalidSchoolFundingCode.getSdcInvalidSchoolFundingCode()).noneMatch(val -> val.equals(sdcSchoolCollectionStudent.getSchoolFundingCode()))) {
+            if(isFundingCodeEligibleAtSchool(school, sdcSchoolCollectionStudent.getSchoolFundingCode())) {
                 //Valid student in this district
                 if(mapOfStudents.containsKey(sdcSchoolCollectionStudent.getAssignedStudentId())) {
                     //Already contains - pull the record which was in the map - compare against incoming - FTE wins - if FTE ties - lowest mincode wins
@@ -200,6 +196,14 @@ public class ChallengeReportsService {
         }
     }
 
+    // Code 14 is never funded; code 20 is only excluded outside public schools
+    private boolean isFundingCodeEligibleAtSchool(SchoolTombstone school, String studentFundingCode){
+        if(SdcInvalidSchoolFundingCode.CODE_14.getCode().equals(studentFundingCode)) {
+            return false;
+        }
+        return !SdcInvalidSchoolFundingCode.CODE_20.getCode().equals(studentFundingCode) || school.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC");
+    }
+
     private boolean isPublicSchoolWithNoFundingCode14(SchoolTombstone currentSchool, String studentFundingCode){
         return currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC") && (StringUtils.isBlank(studentFundingCode) || !SdcInvalidSchoolFundingCode.CODE_14.getCode().equalsIgnoreCase(studentFundingCode));
     }
@@ -240,7 +244,7 @@ public class ChallengeReportsService {
         var currentStage = currentReportingPeriod.getChallengeReportsStatusCode();
 
         if (currentStage.equalsIgnoreCase(ChallengeReportsStatus.PRELIM.toString())) {
-            var fullStudentList = getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod, districtID);
+            var fullStudentList = getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod);
             fullStudentList.forEach(student -> {
                 var currentSchool = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
                 if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {
