@@ -157,6 +157,23 @@ public class SearchCriteriaBuilder {
     }
 
 
+    public static List<Map<String, Object>> sdcSchoolCollectionsByCollectionID(String collectionID) {
+        List<Map<String, Object>> searchCriteriaList = new ArrayList<>();
+
+        Map<String, Object> collectionIdCriteria = new HashMap<>();
+        collectionIdCriteria.put("key", "collectionEntity.collectionID");
+        collectionIdCriteria.put("value", collectionID);
+        collectionIdCriteria.put("operation", "eq");
+        collectionIdCriteria.put("valueType", "UUID");
+
+        Map<String, Object> wrapper = new HashMap<>();
+        wrapper.put("condition", "AND");
+        wrapper.put("searchCriteriaList", List.of(collectionIdCriteria));
+        searchCriteriaList.add(wrapper);
+
+        return searchCriteriaList;
+    }
+
     public static List<Map<String, Object>> byCollectionIdAndFundingCode(String collectionID) {
         List<Map<String, Object>> searchCriteriaList = new ArrayList<>();
 

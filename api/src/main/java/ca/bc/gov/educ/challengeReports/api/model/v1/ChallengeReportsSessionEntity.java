@@ -62,7 +62,7 @@ public class ChallengeReportsSessionEntity {
 
   @EqualsAndHashCode.Exclude
   @ToString.Exclude
-  @OneToMany(mappedBy = "challengeReportsSessionEntity", fetch = FetchType.EAGER, cascade = CascadeType.ALL, targetEntity = ChallengeReportsPostedStudentEntity.class)
+  @OneToMany(mappedBy = "challengeReportsSessionEntity", fetch = FetchType.LAZY, cascade = CascadeType.ALL, targetEntity = ChallengeReportsPostedStudentEntity.class)
   Set<ChallengeReportsPostedStudentEntity> challengeReportsPostedStudentEntities;
 
 }

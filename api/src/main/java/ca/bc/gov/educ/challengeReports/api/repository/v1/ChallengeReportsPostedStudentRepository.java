@@ -10,5 +10,7 @@ import java.util.UUID;
 @Repository
 public interface ChallengeReportsPostedStudentRepository extends JpaRepository<ChallengeReportsPostedStudentEntity, UUID> {
 
-    List<ChallengeReportsPostedStudentEntity> findAllByChallengeReportsSessionEntity_ChallengeReportsSessionID(UUID challengeReportsSessionId);
+    List<ChallengeReportsPostedStudentEntity> findAllByChallengeReportsSessionEntity_ChallengeReportsSessionIDAndStageCode(UUID challengeReportsSessionId, String stageCode);
+
+    boolean existsByChallengeReportsSessionEntity_ChallengeReportsSessionIDAndStageCode(UUID challengeReportsSessionId, String stageCode);
 }

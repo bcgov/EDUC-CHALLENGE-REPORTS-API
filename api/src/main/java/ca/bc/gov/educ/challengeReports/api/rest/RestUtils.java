@@ -16,6 +16,7 @@ import ca.bc.gov.educ.challengeReports.api.struct.v1.external.institute.v1.Distr
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.institute.v1.SchoolTombstone;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.Collection;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.IndependentSchoolFundingGroupSnapshot;
+import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.SdcSchoolCollection;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.studentapi.v1.Student;
 import ca.bc.gov.educ.challengeReports.api.util.JsonUtil;
@@ -344,21 +345,73 @@ public class RestUtils {
 
     String searchJson = objectMapper.writeValueAsString(searchCriteriaList);
     String encodedSearchJson = URLEncoder.encode(searchJson, StandardCharsets.UTF_8);
+    String encodedSortJson = URLEncoder.encode(objectMapper.writeValueAsString(Map.of("studentCourseID", "ASC")), StandardCharsets.UTF_8);
 
-    String fullUrl = this.props.getGradStudentApiURL()
-            + "/grad/student/course/search/pagination"
-            + "?pageNumber=" + pageNumber
-            + "&pageSize=" + pageSize
-            + "&searchCriteriaList=" + encodedSearchJson;
+    List<StudentCoursePagination> studentCourses = new ArrayList<>();
+    boolean hasNextPage = true;
 
-    PaginatedResponse<StudentCoursePagination> response = webClient.get()
-            .uri(fullUrl)
-            .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-            .retrieve()
-            .bodyToMono(new ParameterizedTypeReference<PaginatedResponse<StudentCoursePagination>>() {
-            })
-            .block();
-    return response.getContent();
+    while (hasNextPage) {
+      String fullUrl = this.props.getGradStudentApiURL()
+              + "/grad/student/course/search/pagination"
+              + "?pageNumber=" + pageNumber
+              + "&pageSize=" + pageSize
+              + "&sort=" + encodedSortJson
+              + "&searchCriteriaList=" + encodedSearchJson;
+
+      PaginatedResponse<StudentCoursePagination> response = webClient.get()
+              .uri(fullUrl)
+              .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+              .retrieve()
+              .bodyToMono(new ParameterizedTypeReference<PaginatedResponse<StudentCoursePagination>>() {
+              })
+              .block();
+
+      if (response == null || response.getContent() == null) {
+        throw new ChallengeReportsAPIRuntimeException("Null response fetching GRAD student courses for page " + pageNumber);
+      }
+      studentCourses.addAll(response.getContent());
+      hasNextPage = response.hasNext();
+      pageNumber++;
+    }
+
+    log.debug("Fetched {} GRAD student courses over {} page(s)", studentCourses.size(), pageNumber);
+    return studentCourses;
+  }
+
+  public List<SdcSchoolCollection> getSdcSchoolCollectionsForCollection(String collectionID) throws JsonProcessingException {
+    int pageSize = 1000;
+    int pageNumber = 0;
+
+    String searchJson = objectMapper.writeValueAsString(SearchCriteriaBuilder.sdcSchoolCollectionsByCollectionID(collectionID));
+    String encodedSearchJson = URLEncoder.encode(searchJson, StandardCharsets.UTF_8);
+
+    List<SdcSchoolCollection> sdcSchoolCollections = new ArrayList<>();
+    boolean hasNextPage = true;
+
+    while (hasNextPage) {
+      String fullUrl = this.props.getSdcApiURL()
+              + "/sdcSchoolCollection/paginated"
+              + "?pageNumber=" + pageNumber
+              + "&pageSize=" + pageSize
+              + "&searchCriteriaList=" + encodedSearchJson;
+
+      PaginatedResponse<SdcSchoolCollection> response = webClient.get()
+              .uri(fullUrl)
+              .header(CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+              .retrieve()
+              .bodyToMono(new ParameterizedTypeReference<PaginatedResponse<SdcSchoolCollection>>() {
+              })
+              .block();
+
+      if (response == null || response.getContent() == null) {
+        throw new ChallengeReportsAPIRuntimeException("Null response fetching SDC school collections for page " + pageNumber);
+      }
+      sdcSchoolCollections.addAll(response.getContent());
+      hasNextPage = response.hasNext();
+      pageNumber++;
+    }
+
+    return sdcSchoolCollections;
   }
 
   private List<SdcSchoolCollectionStudent> fetchStudentsForBatch(int pageSize, List<Map<String, Object>> searchCriteriaList) throws JsonProcessingException {

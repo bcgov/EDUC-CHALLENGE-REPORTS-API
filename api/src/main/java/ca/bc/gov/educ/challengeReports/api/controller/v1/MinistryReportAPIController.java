@@ -37,6 +37,7 @@ public class MinistryReportAPIController implements MinistryReportsAPIEndpoint {
         return switch(code.get()) {
             case DISTRICT_FUNDING_REPORT -> csvReportService.generateDistrictFundingReport();
             case INDEPENDENT_SCHOOL_FUNDING_REPORT -> csvReportService.generateIndependentSchoolsFundingReport();
+            case PRELIM_PROVINCIAL_DISTRICT_REPORT, FINAL_PROVINCIAL_DISTRICT_REPORT, PRELIM_PROVINCIAL_INDEPENDENT_REPORT, FINAL_PROVINCIAL_INDEPENDENT_REPORT -> csvReportService.generateProvincialReport(code.get());
         };
     }
 }

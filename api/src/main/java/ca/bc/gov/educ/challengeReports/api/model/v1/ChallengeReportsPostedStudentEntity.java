@@ -57,6 +57,18 @@ public class ChallengeReportsPostedStudentEntity {
   @Column(name = "STUDENT_MIDDLE_NAMES")
   private String studentMiddleNames;
 
+  @Column(name = "STAGE_CODE")
+  private String stageCode;
+
+  @Column(name = "FUNDING_CODE")
+  private String fundingCode;
+
+  @Column(name = "FUNDING_GROUP")
+  private String fundingGroup;
+
+  @Column(name = "REPORT_DATE")
+  private String reportDate;
+
   @Column(name = "CREATE_USER", updatable = false)
   String createUser;
 

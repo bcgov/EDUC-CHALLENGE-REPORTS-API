@@ -38,9 +38,27 @@ public class PreliminaryStageOrchestrator extends BaseOrchestrator<PreliminarySt
     public void populateStepsToExecuteMap() {
         this.stepBuilder()
                 .begin(UPDATE_SESSION_STATUS, this::updateSessionStatus)
-                .step(UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED, SEND_OUT_PRELIMINARY_EMAIL, this::sendPreliminaryStageEmails)
+                .step(UPDATE_SESSION_STATUS, SESSION_STATUS_UPDATED, FETCH_AND_STORE_STUDENTS, this::fetchAndStorePreliminarySetOfStudents)
+                .step(FETCH_AND_STORE_STUDENTS, STUDENTS_FETCHED_AND_STORED, SEND_OUT_PRELIMINARY_EMAIL, this::sendPreliminaryStageEmails)
                 .step(SEND_OUT_PRELIMINARY_EMAIL, PRELIMINARY_EMAIL_SENT, SEND_OUT_PRELIMINARY_EMAIL_STUD_CERT, this::sendPreliminaryStageStudCertEmail)
                 .end(SEND_OUT_PRELIMINARY_EMAIL_STUD_CERT, PRELIMINARY_EMAIL_SENT_STUD_CERT);
+    }
+
+    public void fetchAndStorePreliminarySetOfStudents(final Event event, final ChallengeReportsSagaEntity saga, final PreliminaryStageSagaData sagaData) throws JsonProcessingException {
+        final ChallengeReportsSagaEventEntity eventStates = this.createEventState(saga, event.getEventType(), event.getEventOutcome(), event.getEventPayload());
+        saga.setSagaState(FETCH_AND_STORE_STUDENTS.toString());
+        saga.setStatus(IN_PROGRESS.toString());
+        this.getSagaService().updateAttachedSagaWithEvents(saga, eventStates);
+
+        var currentSession = challengeReportsService.getChallengeReportActiveSession();
+        if (challengeReportsService.hasPostedStudents(currentSession, ChallengeReportsStage.PRELIM)) {
+            log.info("PRELIM posted students already exist for session {}, skipping fetch", currentSession.getChallengeReportsSessionID());
+        } else {
+            var students = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentSession, null);
+            challengeReportsService.savePostedStudentsIfAbsent(students, currentSession, sagaData.getUpdateUser(), ChallengeReportsStage.PRELIM);
+        }
+
+        postEvent(saga, sagaData, FETCH_AND_STORE_STUDENTS, STUDENTS_FETCHED_AND_STORED);
     }
 
     public void sendPreliminaryStageEmails(final Event event, final ChallengeReportsSagaEntity saga, final PreliminaryStageSagaData sagaData) throws JsonProcessingException {
