@@ -83,7 +83,7 @@ class MinistryReportControllerTest extends BaseChallengeReportsAPITest {
     var septCollectionID = UUID.randomUUID().toString();
     var sdcSchoolCollectionID = UUID.randomUUID().toString();
 
-    when(restUtils.getChallengeReportGradStudentCoursesForYear(anyList(), any())).thenReturn(List.of(createStudentCourse(studentID, school.getSchoolId())));
+    when(restUtils.getChallengeReportGradStudentCoursesForYear(anyList())).thenReturn(List.of(createStudentCourse(studentID, school.getSchoolId())));
 
     var septCollection = new Collection();
     septCollection.setCollectionID(septCollectionID);

@@ -263,7 +263,7 @@ public class CSVReportService {
 
         List<ChallengeReportsStudentRecord> students;
         if (isPrelimReport && currentStatus.equalsIgnoreCase(ChallengeReportsStatus.PRELIM.toString())) {
-            students = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod, null);
+            students = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod);
         } else {
             students = challengeReportsService.getPostedStudents(currentReportingPeriod, isPrelimReport ? ChallengeReportsStage.PRELIM : ChallengeReportsStage.FINAL);
         }

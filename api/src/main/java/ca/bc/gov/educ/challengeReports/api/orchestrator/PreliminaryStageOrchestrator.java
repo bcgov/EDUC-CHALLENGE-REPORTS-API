@@ -54,7 +54,7 @@ public class PreliminaryStageOrchestrator extends BaseOrchestrator<PreliminarySt
         if (challengeReportsService.hasPostedStudents(currentSession, ChallengeReportsStage.PRELIM)) {
             log.info("PRELIM posted students already exist for session {}, skipping fetch", currentSession.getChallengeReportsSessionID());
         } else {
-            var students = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentSession, null);
+            var students = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentSession);
             challengeReportsService.savePostedStudentsIfAbsent(students, currentSession, sagaData.getUpdateUser(), ChallengeReportsStage.PRELIM);
         }
 

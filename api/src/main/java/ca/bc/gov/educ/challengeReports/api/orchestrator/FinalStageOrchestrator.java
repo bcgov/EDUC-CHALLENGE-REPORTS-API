@@ -57,7 +57,7 @@ public class FinalStageOrchestrator extends BaseOrchestrator<FinalStageSagaData>
         if (challengeReportsService.hasPostedStudents(currentSession, ChallengeReportsStage.FINAL)) {
             log.info("FINAL posted students already exist for session {}, skipping fetch", currentSession.getChallengeReportsSessionID());
         } else {
-            var students = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentSession, null);
+            var students = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentSession);
             challengeReportsService.savePostedStudentsIfAbsent(students, currentSession, sagaData.getUpdateUser(), ChallengeReportsStage.FINAL);
         }
 
