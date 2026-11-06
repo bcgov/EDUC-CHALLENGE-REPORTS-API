@@ -12,11 +12,13 @@ import ca.bc.gov.educ.challengeReports.api.repository.v1.ChallengeReportsSession
 import ca.bc.gov.educ.challengeReports.api.rest.RestUtils;
 import ca.bc.gov.educ.challengeReports.api.service.v1.ChallengeReportsService;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.ChallengeReportsStudentRecord;
+import ca.bc.gov.educ.challengeReports.api.struct.v1.DistrictChallengeReportsCounts;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.DownloadableReportResponse;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.PaginatedResponse;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.coreg.v1.CourseCode;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.gradstudent.v1.GraduationStudentPaginationRecord;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.gradstudent.v1.StudentCoursePagination;
+import ca.bc.gov.educ.challengeReports.api.struct.v1.external.institute.v1.District;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.institute.v1.SchoolTombstone;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.Collection;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.IndependentSchoolFundingGroupSnapshot;
@@ -166,6 +168,67 @@ class MinistryReportControllerTest extends BaseChallengeReportsAPITest {
             "03636018,Marco's school,,111111111,20240929,,PHYS,12,202407",
             "03636018,Marco's school,,111111111,20240929,,MATH,12,202501",
             "03636018,Marco's school,,222222222,20240929,,MATH,12,202407");
+  }
+
+  @Test
+  void testDistrictFundingReport_countsOnlyFinalRows() throws Exception {
+    var session = createSession("FINALIZED");
+    var school = createMockSchool("PUBLIC");
+    when(restUtils.getSchoolBySchoolID(anyString())).thenReturn(Optional.of(school));
+    var district = new District();
+    district.setDistrictId(school.getDistrictId());
+    district.setDistrictNumber("036");
+    district.setDisplayName("Surrey");
+    when(restUtils.getDistrictByDistrictID(school.getDistrictId())).thenReturn(Optional.of(district));
+
+    challengeReportsPostedStudentRepository.save(createPostedStudent(session, school, "FINAL", "111111111"));
+    challengeReportsPostedStudentRepository.save(createPostedStudent(session, school, "FINAL", "222222222"));
+    challengeReportsPostedStudentRepository.save(createPostedStudent(session, school, "PRELIM", "333333333"));
+
+    assertThat(downloadCsv("DISTRICT_FUNDING_REPORT")).containsExactly(
+            "District Number,District Name,Total Successful Course Challenges",
+            "036,Surrey,2");
+  }
+
+  @Test
+  void testIndependentSchoolFundingReport_readsOnlyFinalRowsWithFundingGroup() throws Exception {
+    var session = createSession("FINALIZED");
+    var school = createMockSchool("INDP_FNS");
+    when(restUtils.getSchoolBySchoolID(anyString())).thenReturn(Optional.of(school));
+    var septCollection = new Collection();
+    septCollection.setCollectionID(UUID.randomUUID().toString());
+    when(restUtils.getLastSeptemberCollection(anyString())).thenReturn(new PaginatedResponse<>(List.of(septCollection)));
+    var fundingGroup = new IndependentSchoolFundingGroupSnapshot();
+    fundingGroup.setSchoolID(school.getSchoolId());
+    fundingGroup.setSchoolGradeCode("GRADE12");
+    fundingGroup.setSchoolFundingGroupCode("GROUP1");
+    when(restUtils.getSchoolFundingGroupsForCollection(septCollection.getCollectionID())).thenReturn(List.of(fundingGroup));
+
+    challengeReportsPostedStudentRepository.save(createPostedStudent(session, school, "FINAL", "111111111"));
+    challengeReportsPostedStudentRepository.save(createPostedStudent(session, school, "PRELIM", "333333333"));
+
+    assertThat(downloadCsv("INDEPENDENT_SCHOOL_FUNDING_REPORT")).containsExactly(
+            "Mincode,School Name,Funding Group,PEN,Course Code and Level",
+            "03636018,Marco's school,GROUP1,111111111,MATH 12");
+  }
+
+  @Test
+  void testEdxDistrictReportAndCounts_whenFinalized_readOnlyFinalRows() throws Exception {
+    var session = createSession("FINALIZED");
+    var school = createMockSchool("PUBLIC");
+    when(restUtils.getSchoolBySchoolID(anyString())).thenReturn(Optional.of(school));
+
+    challengeReportsPostedStudentRepository.save(createPostedStudent(session, school, "FINAL", "111111111"));
+    challengeReportsPostedStudentRepository.save(createPostedStudent(session, school, "PRELIM", "333333333"));
+
+    var download = this.mockMvc.perform(get(URL.BASE_URL + "/district/" + school.getDistrictId() + "/download").with(mockAuthority)).andExpect(status().isOk()).andReturn();
+    var report = objectMapper.readValue(download.getResponse().getContentAsByteArray(), DownloadableReportResponse.class);
+    var csv = new String(Base64.getDecoder().decode(report.getDocumentData()), StandardCharsets.UTF_8);
+    assertThat(csv).contains("111111111").doesNotContain("333333333");
+
+    var counts = this.mockMvc.perform(get(URL.BASE_URL + "/district/" + school.getDistrictId()).with(mockAuthority)).andExpect(status().isOk()).andReturn();
+    var districtCounts = objectMapper.readValue(counts.getResponse().getContentAsByteArray(), DistrictChallengeReportsCounts.class);
+    assertThat(districtCounts.getSchoolsWithCounts()).singleElement().satisfies(count -> assertThat(count.getCount()).isEqualTo("1"));
   }
 
   @Test
