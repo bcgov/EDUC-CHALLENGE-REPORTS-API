@@ -5,7 +5,6 @@ import ca.bc.gov.educ.challengeReports.api.messaging.MessagePublisher;
 import ca.bc.gov.educ.challengeReports.api.properties.ApplicationProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -24,6 +23,7 @@ import java.util.function.Function;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class RestUtilsTest {
@@ -34,7 +34,7 @@ class RestUtilsTest {
   @BeforeEach
   void setUp() {
     requestedUris.clear();
-    props = Mockito.mock(ApplicationProperties.class);
+    props = mock(ApplicationProperties.class);
     when(props.getGradStudentApiURL()).thenReturn("http://grad");
     when(props.getSdcApiURL()).thenReturn("http://sdc");
   }
@@ -103,7 +103,7 @@ class RestUtilsTest {
               return Mono.just(response.build());
             })
             .build();
-    return new RestUtils(webClient, webClient, props, Mockito.mock(MessagePublisher.class));
+    return new RestUtils(webClient, webClient, props, mock(MessagePublisher.class));
   }
 
   private static String page(String content, int number, int size, long totalElements) {

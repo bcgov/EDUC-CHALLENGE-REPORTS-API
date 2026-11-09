@@ -27,7 +27,6 @@ import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.SdcSchoolCo
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
@@ -43,6 +42,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -70,7 +70,7 @@ class MinistryReportControllerTest extends BaseChallengeReportsAPITest {
 
   @BeforeEach
   public void setUp() {
-    Mockito.reset(restUtils);
+    reset(restUtils);
     challengeReportsPostedStudentRepository.deleteAll();
     challengeReportsSessionRepository.deleteAll();
     challengeReportsReportingPeriodRepository.deleteAll();
