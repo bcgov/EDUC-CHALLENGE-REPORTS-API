@@ -35,10 +35,14 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -253,6 +257,59 @@ class MinistryReportControllerTest extends BaseChallengeReportsAPITest {
     var prelimRows = challengeReportsPostedStudentRepository.findAllByChallengeReportsSessionEntity_ChallengeReportsSessionIDAndStageCode(session.getChallengeReportsSessionID(), "PRELIM");
     assertThat(finalRows).extracting(ChallengeReportsPostedStudentEntity::getChallengeReportsPostedStudentID).containsExactly(original.getChallengeReportsPostedStudentID());
     assertThat(prelimRows).extracting(ChallengeReportsPostedStudentEntity::getPen).containsExactly("999999999");
+  }
+
+  @Test
+  void testSavePostedStudents_whenCalledConcurrently_savesOnlyOneSnapshot() throws Exception {
+    var session = createSession("PRELIM");
+    var school = createMockSchool("PUBLIC");
+    var records = new ArrayList<ChallengeReportsStudentRecord>();
+    for (int i = 0; i < 200; i++) {
+      var studentRecord = new ChallengeReportsStudentRecord();
+      studentRecord.setSchoolID(UUID.fromString(school.getSchoolId()));
+      studentRecord.setDistrictID(UUID.fromString(school.getDistrictId()));
+      studentRecord.setStudentID(UUID.randomUUID());
+      studentRecord.setPen(String.format("%09d", i));
+      studentRecord.setCourseSession("202407");
+      studentRecord.setCourseCodeAndLevel("MATH 12");
+      studentRecord.setStudentSurname("SMITH");
+      records.add(studentRecord);
+    }
+
+    var executor = Executors.newFixedThreadPool(2);
+    var start = new CountDownLatch(1);
+    try {
+      var saves = List.of(
+              executor.submit(() -> { start.await(); challengeReportsService.savePostedStudentsIfAbsent(records, session, "ABC", ChallengeReportsStage.PRELIM); return null; }),
+              executor.submit(() -> { start.await(); challengeReportsService.savePostedStudentsIfAbsent(records, session, "ABC", ChallengeReportsStage.PRELIM); return null; }));
+      start.countDown();
+      for (var save : saves) {
+        save.get(30, TimeUnit.SECONDS);
+      }
+    } finally {
+      executor.shutdownNow();
+    }
+
+    assertThat(challengeReportsPostedStudentRepository.findAllByChallengeReportsSessionEntity_ChallengeReportsSessionIDAndStageCode(session.getChallengeReportsSessionID(), "PRELIM")).hasSize(200);
+  }
+
+  @Test
+  void testProvincialReport_splitsFixedWidthCourseCodeAndLevel() throws Exception {
+    var session = createSession("FINALIZED");
+    var school = createMockSchool("PUBLIC");
+    when(restUtils.getSchoolBySchoolID(anyString())).thenReturn(Optional.of(school));
+
+    var paddedShortCode = createPostedStudent(session, school, "FINAL", "111111111");
+    paddedShortCode.setCourseCodeAndLevel("CLE  10");
+    challengeReportsPostedStudentRepository.save(paddedShortCode);
+    var codeWithoutLevel = createPostedStudent(session, school, "FINAL", "222222222");
+    codeWithoutLevel.setCourseCodeAndLevel("LTE");
+    challengeReportsPostedStudentRepository.save(codeWithoutLevel);
+
+    assertThat(downloadCsv("FINAL_PROVINCIAL_DISTRICT_REPORT")).containsExactly(
+            HEADER,
+            "03636018,Marco's school,,111111111,20240929,,CLE,10,202407",
+            "03636018,Marco's school,,222222222,20240929,,LTE,,202407");
   }
 
   @Test

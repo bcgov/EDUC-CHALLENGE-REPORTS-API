@@ -147,6 +147,7 @@ public class CSVReportService {
     }
 
     private List<String> prepareStudentDataForProvincialReport(SchoolTombstone school, ChallengeReportsStudentRecord student) {
+        // COREG external codes are a fixed-width, space-padded 5 character course code followed by the level
         var courseCodeAndLevel = StringUtils.defaultString(student.getCourseCodeAndLevel());
         var courseCode = courseCodeAndLevel.length() > 5 ? courseCodeAndLevel.substring(0, 5) : courseCodeAndLevel;
         var courseLevel = courseCodeAndLevel.length() > 5 ? courseCodeAndLevel.substring(5) : "";

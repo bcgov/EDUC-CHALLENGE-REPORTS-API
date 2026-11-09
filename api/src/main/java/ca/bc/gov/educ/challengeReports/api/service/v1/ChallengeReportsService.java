@@ -62,6 +62,8 @@ public class ChallengeReportsService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void savePostedStudentsIfAbsent(List<ChallengeReportsStudentRecord> challengeReportsStudentRecords, ChallengeReportsSessionEntity challengeReportsSessionEntity, String updateUser, ChallengeReportsStage stage) {
+        // Saga replays can overlap this step; serialize saves per session
+        lockSession(challengeReportsSessionEntity.getChallengeReportsSessionID());
         if (hasPostedStudents(challengeReportsSessionEntity, stage)) {
             log.info("{} posted students already exist for session {}, skipping save", stage, challengeReportsSessionEntity.getChallengeReportsSessionID());
             return;
@@ -322,6 +324,11 @@ public class ChallengeReportsService {
         response.setSchoolsWithCounts(finalCounts);
         log.debug("getChallengeReportCountsForDistrict complete");
         return response;
+    }
+
+    private void lockSession(UUID challengeReportsSessionID) {
+        challengeReportsSessionRepository.lockById(challengeReportsSessionID)
+                .orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "challengeReportsSession", challengeReportsSessionID.toString()));
     }
 
     public boolean hasPostedStudents(ChallengeReportsSessionEntity challengeReportsSession, ChallengeReportsStage stage) {
