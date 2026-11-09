@@ -36,7 +36,8 @@ public class CSVReportService {
     private record SchoolStudent(SchoolTombstone school, ChallengeReportsStudentRecord student) {}
 
     private static final Set<String> INDEPENDENT_CATEGORIES = Set.of("INDEPEND", "INDP_FNS");
-    private static final Set<String> PUBLIC_CATEGORIES = Set.of("PUBLIC");
+    private static final String PUBLIC_CATEGORY = "PUBLIC";
+    private static final Set<String> PUBLIC_CATEGORIES = Set.of(PUBLIC_CATEGORY);
 
     private static final Comparator<SchoolStudent> PROVINCIAL_REPORT_ORDER =
             Comparator.comparing((SchoolStudent schoolStudent) -> schoolStudent.school().getMincode())
@@ -62,16 +63,16 @@ public class CSVReportService {
         if (currentStage.equalsIgnoreCase(ChallengeReportsStatus.PRELIM.toString())) {
             var fullStudentList = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod);
             fullStudentList.forEach(student -> {
-                var currentSchool = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
-                if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {
+                var currentSchool = getSchool(student.getSchoolID());
+                if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase(PUBLIC_CATEGORY)) {
                     finalStudentDistrictList.add(student);
                 }
             });
         } else {
             var postedStudents = challengeReportsService.getPostedStudents(currentReportingPeriod, ChallengeReportsStage.FINAL);
             postedStudents.forEach(student -> {
-                var currentSchool = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
-                if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {
+                var currentSchool = getSchool(student.getSchoolID());
+                if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase(PUBLIC_CATEGORY)) {
                     finalStudentDistrictList.add(student);
                 }
             });
@@ -178,8 +179,8 @@ public class CSVReportService {
 
             var districtCounts = new HashMap<UUID, Integer>();
             allStudents.forEach(challengeReportsStudentRecord -> {
-                var school = restUtils.getSchoolBySchoolID(challengeReportsStudentRecord.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", challengeReportsStudentRecord.getSchoolID().toString()));
-                if(school.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {
+                var school = getSchool(challengeReportsStudentRecord.getSchoolID());
+                if(school.getSchoolCategoryCode().equalsIgnoreCase(PUBLIC_CATEGORY)) {
                     if (districtCounts.containsKey(challengeReportsStudentRecord.getDistrictID())) {
                         districtCounts.put(challengeReportsStudentRecord.getDistrictID(), districtCounts.get(challengeReportsStudentRecord.getDistrictID()) + 1);
                     } else {
@@ -224,7 +225,7 @@ public class CSVReportService {
 
             var finalStudents = new ArrayList<ChallengeReportsStudentRecord>();
             allStudents.forEach(challengeReportsStudentRecord -> {
-                var school = restUtils.getSchoolBySchoolID(challengeReportsStudentRecord.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", challengeReportsStudentRecord.getSchoolID().toString()));
+                var school = getSchool(challengeReportsStudentRecord.getSchoolID());
                 if(school.getSchoolCategoryCode().equalsIgnoreCase("INDEPEND") || school.getSchoolCategoryCode().equalsIgnoreCase("INDP_FNS")) {
                     finalStudents.add(challengeReportsStudentRecord);
                 }
@@ -233,7 +234,7 @@ public class CSVReportService {
             var schoolGroups = restUtils.getSchoolFundingGroupsForCollection(collection.getContent().get(0).getCollectionID());
             log.debug("School funding groups: {}", schoolGroups);
             for (var student : finalStudents) {
-                var school = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
+                var school = getSchool(student.getSchoolID());
                 var filteredSchoolGroups = schoolGroups.stream().filter(schoolGroup -> schoolGroup.getSchoolID().equals(student.getSchoolID().toString())).toList();
                 List<String> csvRowData = prepareStudentDataForIndependentFundingReport(school, student, filteredSchoolGroups);
                 if(csvRowData != null) {
