@@ -69,7 +69,7 @@ class MinistryReportControllerTest extends BaseChallengeReportsAPITest {
   private final SecurityMockMvcRequestPostProcessors.OidcLoginRequestPostProcessor mockAuthority = oidcLogin().authorities((GrantedAuthority) () -> "SCOPE_READ_CHALLENGE_REPORTS");
 
   @BeforeEach
-  public void setUp() {
+  void setUp() {
     reset(restUtils);
     challengeReportsPostedStudentRepository.deleteAll();
     challengeReportsSessionRepository.deleteAll();
