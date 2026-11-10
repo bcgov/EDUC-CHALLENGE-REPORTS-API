@@ -4,16 +4,13 @@ package ca.bc.gov.educ.challengeReports.api.service.v1;
 import ca.bc.gov.educ.challengeReports.api.constants.v1.*;
 import ca.bc.gov.educ.challengeReports.api.exception.ChallengeReportsAPIRuntimeException;
 import ca.bc.gov.educ.challengeReports.api.exception.EntityNotFoundException;
-import ca.bc.gov.educ.challengeReports.api.model.v1.ChallengeReportsPostedStudentEntity;
 import ca.bc.gov.educ.challengeReports.api.model.v1.ChallengeReportsSessionEntity;
-import ca.bc.gov.educ.challengeReports.api.repository.v1.ChallengeReportsPostedStudentRepository;
 import ca.bc.gov.educ.challengeReports.api.repository.v1.ChallengeReportsSessionRepository;
 import ca.bc.gov.educ.challengeReports.api.rest.RestUtils;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.ChallengeReportsStudentRecord;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.DownloadableReportResponse;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.institute.v1.District;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.institute.v1.SchoolTombstone;
-import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.Collection;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.IndependentSchoolFundingGroupSnapshot;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
@@ -36,10 +33,25 @@ import java.util.*;
 @RequiredArgsConstructor
 public class CSVReportService {
 
+    private record SchoolStudent(SchoolTombstone school, ChallengeReportsStudentRecord student) {}
+
+    private static final Set<String> INDEPENDENT_CATEGORIES = Set.of("INDEPEND", "INDP_FNS");
+    private static final String PUBLIC_CATEGORY = "PUBLIC";
+    private static final Set<String> PUBLIC_CATEGORIES = Set.of(PUBLIC_CATEGORY);
+
+    private static final Comparator<SchoolStudent> PROVINCIAL_REPORT_ORDER =
+            Comparator.comparing((SchoolStudent schoolStudent) -> schoolStudent.school().getMincode())
+                    .thenComparing(schoolStudent -> schoolStudent.student().getPen(), Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(schoolStudent -> schoolStudent.student().getCourseSession(), Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(schoolStudent -> schoolStudent.student().getCourseCodeAndLevel(), Comparator.nullsLast(Comparator.naturalOrder()));
+
     private final ChallengeReportsSessionRepository challengeReportsSessionRepository;
-    private final ChallengeReportsPostedStudentRepository challengeReportsPostedStudentRepository;
     private final ChallengeReportsService challengeReportsService;
     private final RestUtils restUtils;
+
+    private SchoolTombstone getSchool(UUID schoolID) {
+        return restUtils.getSchoolBySchoolID(schoolID.toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", schoolID.toString()));
+    }
 
     public DownloadableReportResponse generateChallengeReportForThisYear(String districtID) throws JsonProcessingException {
         var currentReportingPeriod = challengeReportsSessionRepository.findActiveReportingPeriodSession().orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "reportingPeriodSession", null));
@@ -51,27 +63,17 @@ public class CSVReportService {
         if (currentStage.equalsIgnoreCase(ChallengeReportsStatus.PRELIM.toString())) {
             var fullStudentList = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod);
             fullStudentList.forEach(student -> {
-                var currentSchool = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
-                if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {
+                var currentSchool = getSchool(student.getSchoolID());
+                if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase(PUBLIC_CATEGORY)) {
                     finalStudentDistrictList.add(student);
                 }
             });
         } else {
-            var postedStudents = challengeReportsPostedStudentRepository.findAllByChallengeReportsSessionEntity_ChallengeReportsSessionID(currentReportingPeriod.getChallengeReportsSessionID());
+            var postedStudents = challengeReportsService.getPostedStudents(currentReportingPeriod, ChallengeReportsStage.FINAL);
             postedStudents.forEach(student -> {
-                var studentRecord = new ChallengeReportsStudentRecord();
-                var currentSchool = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
-                if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {
-                    studentRecord.setSchoolID(student.getSchoolID());
-                    studentRecord.setDistrictID(student.getDistrictID());
-                    studentRecord.setStudentID(student.getStudentID());
-                    studentRecord.setPen(student.getPen());
-                    studentRecord.setCourseSession(student.getCourseSession());
-                    studentRecord.setCourseCodeAndLevel(student.getCourseCodeAndLevel());
-                    studentRecord.setStudentSurname(student.getStudentSurname());
-                    studentRecord.setStudentGivenName(student.getStudentGivenName());
-                    studentRecord.setStudentMiddleNames(student.getStudentMiddleNames());
-                    finalStudentDistrictList.add(studentRecord);
+                var currentSchool = getSchool(student.getSchoolID());
+                if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase(PUBLIC_CATEGORY)) {
+                    finalStudentDistrictList.add(student);
                 }
             });
         }
@@ -132,15 +134,8 @@ public class CSVReportService {
         ));
     }
 
-    private List<String> prepareStudentDataForIndependentFundingReport(SchoolTombstone school, ChallengeReportsPostedStudentEntity student, List<IndependentSchoolFundingGroupSnapshot> schoolGroups) {
-        String fundingGroup = null;
-
-        log.debug("Course code and level is: {}", student.getCourseCodeAndLevel());
-        if(StringUtils.isNotBlank(student.getCourseCodeAndLevel())) {
-            fundingGroup = getFundingGroupSnapshotForGrade(schoolGroups, student.getCourseCodeAndLevel().replaceAll("[^0-9]", ""));
-        }
-
-        log.debug("Found funding group is: {}", fundingGroup);
+    private List<String> prepareStudentDataForIndependentFundingReport(SchoolTombstone school, ChallengeReportsStudentRecord student, List<IndependentSchoolFundingGroupSnapshot> schoolGroups) {
+        var fundingGroup = challengeReportsService.getFundingGroupForCourse(schoolGroups, student.getCourseCodeAndLevel());
 
         return new ArrayList<>(Arrays.asList(
                 school.getMincode(),
@@ -151,54 +146,28 @@ public class CSVReportService {
         ));
     }
 
-    private String getFundingGroupSnapshotForGrade(List<IndependentSchoolFundingGroupSnapshot> schoolFundingGroups, String gradeCode) {
-        log.debug("schoolFundingGroups is: {}", schoolFundingGroups);
-        log.debug("gradeCode is: {}", gradeCode);
-        String foundGroup = null;
-        if(StringUtils.isNotBlank(gradeCode)) {
-            foundGroup = schoolFundingGroups
-                    .stream()
-                    .filter(group -> {
-                        var schoolGrade = SchoolGradeCodes.findByTypeCode(group.getSchoolGradeCode());
-                        return schoolGrade.filter(schoolGradeCodes -> gradeCode.equals(schoolGradeCodes.getCode())).isPresent();
-                    })
-                    .map(IndependentSchoolFundingGroupSnapshot::getSchoolFundingGroupCode)
-                    .findFirst()
-                    .orElse(null);
-            return foundGroup;
-        }
+    private List<String> prepareStudentDataForProvincialReport(SchoolTombstone school, ChallengeReportsStudentRecord student) {
+        // COREG external codes are a fixed-width, space-padded 5 character course code followed by the level
+        var courseCodeAndLevel = StringUtils.defaultString(student.getCourseCodeAndLevel());
+        var courseCode = courseCodeAndLevel.length() > 5 ? courseCodeAndLevel.substring(0, 5) : courseCodeAndLevel;
+        var courseLevel = courseCodeAndLevel.length() > 5 ? courseCodeAndLevel.substring(5) : "";
 
-        log.debug("foundGroup is: {}", foundGroup);
-        
-        var grade10and11and12FundingGroups = schoolFundingGroups
-                .stream()
-                .filter(group -> group.getSchoolGradeCode().equals("GRADE10") || group.getSchoolGradeCode().equals("GRADE11") || group.getSchoolGradeCode().equals("GRADE12"))
-                .map(IndependentSchoolFundingGroupSnapshot::getSchoolFundingGroupCode)
-                .toList();
-
-        log.debug("grade10and11and12FundingGroups is: {}", grade10and11and12FundingGroups);
-        var matchedGroup1 = grade10and11and12FundingGroups
-                .stream()
-                .anyMatch(group -> group.equals("GROUP1"));
-        
-        if(matchedGroup1) {
-            return "GROUP1";
-        }
-
-        var matchedGroup2 = grade10and11and12FundingGroups
-                .stream()
-                .anyMatch(group -> group.equals("GROUP2"));
-
-        if(matchedGroup2) {
-            return "GROUP2";
-        }
-
-        return "";
+        return new ArrayList<>(Arrays.asList(
+                school.getMincode(),
+                school.getDisplayName(),
+                StringUtils.defaultString(student.getFundingGroup()),
+                student.getPen(),
+                StringUtils.defaultString(student.getReportDate()),
+                StringUtils.defaultString(student.getFundingCode()),
+                courseCode.trim(),
+                courseLevel.trim(),
+                student.getCourseSession()
+        ));
     }
 
     public DownloadableReportResponse generateDistrictFundingReport() {
         var currentReportingPeriod = challengeReportsSessionRepository.findActiveReportingPeriodSession().orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "reportingPeriodSession", null));
-        var allStudents = challengeReportsPostedStudentRepository.findAllByChallengeReportsSessionEntity_ChallengeReportsSessionID(currentReportingPeriod.getChallengeReportsSessionID());
+        var allStudents = challengeReportsService.getPostedStudents(currentReportingPeriod, ChallengeReportsStage.FINAL);
         String[] headers = MinistryDistrictReportHeader.getAllValuesAsStringArray();
         CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
                 .setHeader(headers)
@@ -211,8 +180,8 @@ public class CSVReportService {
 
             var districtCounts = new HashMap<UUID, Integer>();
             allStudents.forEach(challengeReportsStudentRecord -> {
-                var school = restUtils.getSchoolBySchoolID(challengeReportsStudentRecord.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", challengeReportsStudentRecord.getSchoolID().toString()));
-                if(school.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {
+                var school = getSchool(challengeReportsStudentRecord.getSchoolID());
+                if(school.getSchoolCategoryCode().equalsIgnoreCase(PUBLIC_CATEGORY)) {
                     if (districtCounts.containsKey(challengeReportsStudentRecord.getDistrictID())) {
                         districtCounts.put(challengeReportsStudentRecord.getDistrictID(), districtCounts.get(challengeReportsStudentRecord.getDistrictID()) + 1);
                     } else {
@@ -242,7 +211,7 @@ public class CSVReportService {
 
     public DownloadableReportResponse generateIndependentSchoolsFundingReport() throws JsonProcessingException {
         var currentReportingPeriod = challengeReportsSessionRepository.findActiveReportingPeriodSession().orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "reportingPeriodSession", null));
-        var allStudents = challengeReportsPostedStudentRepository.findAllByChallengeReportsSessionEntity_ChallengeReportsSessionID(currentReportingPeriod.getChallengeReportsSessionID());
+        var allStudents = challengeReportsService.getPostedStudents(currentReportingPeriod, ChallengeReportsStage.FINAL);
         var lastYear = Year.of(Integer.parseInt(currentReportingPeriod.getChallengeReportsPeriod().getSchoolYear())).minusYears(1);
         var collection = restUtils.getLastSeptemberCollection(lastYear.toString());
         String[] headers = MinistryIndependentSchoolsReportHeader.getAllValuesAsStringArray();
@@ -255,9 +224,9 @@ public class CSVReportService {
             CSVPrinter csvPrinter = new CSVPrinter(writer, csvFormat);
 
 
-            var finalStudents = new ArrayList<ChallengeReportsPostedStudentEntity>();
+            var finalStudents = new ArrayList<ChallengeReportsStudentRecord>();
             allStudents.forEach(challengeReportsStudentRecord -> {
-                var school = restUtils.getSchoolBySchoolID(challengeReportsStudentRecord.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", challengeReportsStudentRecord.getSchoolID().toString()));
+                var school = getSchool(challengeReportsStudentRecord.getSchoolID());
                 if(school.getSchoolCategoryCode().equalsIgnoreCase("INDEPEND") || school.getSchoolCategoryCode().equalsIgnoreCase("INDP_FNS")) {
                     finalStudents.add(challengeReportsStudentRecord);
                 }
@@ -266,7 +235,7 @@ public class CSVReportService {
             var schoolGroups = restUtils.getSchoolFundingGroupsForCollection(collection.getContent().get(0).getCollectionID());
             log.debug("School funding groups: {}", schoolGroups);
             for (var student : finalStudents) {
-                var school = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
+                var school = getSchool(student.getSchoolID());
                 var filteredSchoolGroups = schoolGroups.stream().filter(schoolGroup -> schoolGroup.getSchoolID().equals(student.getSchoolID().toString())).toList();
                 List<String> csvRowData = prepareStudentDataForIndependentFundingReport(school, student, filteredSchoolGroups);
                 if(csvRowData != null) {
@@ -278,7 +247,52 @@ public class CSVReportService {
 
             var downloadableReport = new DownloadableReportResponse();
 
-            downloadableReport.setReportType(MinistryReportTypeCode.DISTRICT_FUNDING_REPORT.getCode());
+            downloadableReport.setReportType(MinistryReportTypeCode.INDEPENDENT_SCHOOL_FUNDING_REPORT.getCode());
+            downloadableReport.setDocumentData(Base64.getEncoder().encodeToString(byteArrayOutputStream.toByteArray()));
+
+            return downloadableReport;
+        } catch (IOException e) {
+            throw new ChallengeReportsAPIRuntimeException(e);
+        }
+    }
+
+    public DownloadableReportResponse generateProvincialReport(MinistryReportTypeCode reportType) throws JsonProcessingException {
+        var currentReportingPeriod = challengeReportsSessionRepository.findActiveReportingPeriodSession().orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "reportingPeriodSession", null));
+        var currentStatus = currentReportingPeriod.getChallengeReportsStatusCode();
+
+        var isPrelimReport = reportType == MinistryReportTypeCode.PRELIM_PROVINCIAL_DISTRICT_REPORT || reportType == MinistryReportTypeCode.PRELIM_PROVINCIAL_INDEPENDENT_REPORT;
+        var isIndependentReport = reportType == MinistryReportTypeCode.PRELIM_PROVINCIAL_INDEPENDENT_REPORT || reportType == MinistryReportTypeCode.FINAL_PROVINCIAL_INDEPENDENT_REPORT;
+
+        List<ChallengeReportsStudentRecord> students;
+        if (isPrelimReport && currentStatus.equalsIgnoreCase(ChallengeReportsStatus.PRELIM.toString())) {
+            students = challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod);
+        } else {
+            students = challengeReportsService.getPostedStudents(currentReportingPeriod, isPrelimReport ? ChallengeReportsStage.PRELIM : ChallengeReportsStage.FINAL);
+        }
+
+        String[] headers = ProvincialReportHeader.getAllValuesAsStringArray();
+        CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
+                .setHeader(headers)
+                .build();
+        try {
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(byteArrayOutputStream));
+            CSVPrinter csvPrinter = new CSVPrinter(writer, csvFormat);
+
+            var categories = isIndependentReport ? INDEPENDENT_CATEGORIES : PUBLIC_CATEGORIES;
+
+            var rows = students.stream()
+                    .map(student -> new SchoolStudent(getSchool(student.getSchoolID()), student))
+                    .filter(schoolStudent -> categories.contains(schoolStudent.school().getSchoolCategoryCode()))
+                    .sorted(PROVINCIAL_REPORT_ORDER)
+                    .map(schoolStudent -> prepareStudentDataForProvincialReport(schoolStudent.school(), schoolStudent.student()))
+                    .toList();
+
+            csvPrinter.printRecords(rows);
+            csvPrinter.flush();
+
+            var downloadableReport = new DownloadableReportResponse();
+            downloadableReport.setReportType(reportType.getCode());
             downloadableReport.setDocumentData(Base64.getEncoder().encodeToString(byteArrayOutputStream.toByteArray()));
 
             return downloadableReport;

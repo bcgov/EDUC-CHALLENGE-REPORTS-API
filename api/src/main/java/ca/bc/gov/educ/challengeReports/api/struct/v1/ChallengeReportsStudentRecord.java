@@ -29,4 +29,10 @@ public class ChallengeReportsStudentRecord {
 
     private String studentMiddleNames;
 
+    private String fundingCode;
+
+    private String fundingGroup;
+
+    private String reportDate;
+
 }

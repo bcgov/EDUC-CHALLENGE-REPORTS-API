@@ -1,6 +1,8 @@
 package ca.bc.gov.educ.challengeReports.api.service.v1;
 
+import ca.bc.gov.educ.challengeReports.api.constants.v1.ChallengeReportsStage;
 import ca.bc.gov.educ.challengeReports.api.constants.v1.ChallengeReportsStatus;
+import ca.bc.gov.educ.challengeReports.api.constants.v1.SchoolGradeCodes;
 import ca.bc.gov.educ.challengeReports.api.constants.v1.SdcInvalidSchoolFundingCode;
 import ca.bc.gov.educ.challengeReports.api.exception.EntityNotFoundException;
 import ca.bc.gov.educ.challengeReports.api.model.v1.ChallengeReportsPostedStudentEntity;
@@ -14,6 +16,8 @@ import ca.bc.gov.educ.challengeReports.api.struct.v1.SchoolChallengeReportsCount
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.coreg.v1.CourseCode;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.gradstudent.v1.StudentCoursePagination;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.institute.v1.SchoolTombstone;
+import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.IndependentSchoolFundingGroupSnapshot;
+import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.SdcSchoolCollection;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
 import ca.bc.gov.educ.challengeReports.api.util.TransformUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -30,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -39,6 +44,12 @@ import static ca.bc.gov.educ.challengeReports.api.constants.v1.ChallengeReportsS
 @Service
 @Slf4j
 public class ChallengeReportsService {
+    private record CollectionSchoolKey(String collectionID, String schoolID) {
+        static CollectionSchoolKey of(SdcSchoolCollection sdcSchoolCollection) {
+            return new CollectionSchoolKey(sdcSchoolCollection.getCollectionID(), sdcSchoolCollection.getSchoolID());
+        }
+    }
+
     private final ChallengeReportsSessionRepository challengeReportsSessionRepository;
     private final ChallengeReportsPostedStudentRepository challengeReportsPostedStudentRepository;
     private final RestUtils restUtils;
@@ -56,7 +67,13 @@ public class ChallengeReportsService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveAllPostedStudents(List<ChallengeReportsStudentRecord> challengeReportsStudentRecords, ChallengeReportsSessionEntity challengeReportsSessionEntity, String updateUser) {
+    public void savePostedStudentsIfAbsent(List<ChallengeReportsStudentRecord> challengeReportsStudentRecords, ChallengeReportsSessionEntity challengeReportsSessionEntity, String updateUser, ChallengeReportsStage stage) {
+        // Saga replays can overlap this step; serialize saves per session
+        lockSession(challengeReportsSessionEntity.getChallengeReportsSessionID());
+        if (hasPostedStudents(challengeReportsSessionEntity, stage)) {
+            log.info("{} posted students already exist for session {}, skipping save", stage, challengeReportsSessionEntity.getChallengeReportsSessionID());
+            return;
+        }
         var postedStudents = new ArrayList<ChallengeReportsPostedStudentEntity>();
         challengeReportsStudentRecords.forEach(student -> {
             ChallengeReportsPostedStudentEntity postedStudent = new ChallengeReportsPostedStudentEntity();
@@ -70,6 +87,10 @@ public class ChallengeReportsService {
             postedStudent.setStudentSurname(student.getStudentSurname());
             postedStudent.setStudentGivenName(student.getStudentGivenName());
             postedStudent.setStudentMiddleNames(student.getStudentMiddleNames());
+            postedStudent.setStageCode(stage.toString());
+            postedStudent.setFundingCode(student.getFundingCode());
+            postedStudent.setFundingGroup(student.getFundingGroup());
+            postedStudent.setReportDate(student.getReportDate());
             postedStudent.setCreateUser(updateUser);
             postedStudent.setCreateDate(LocalDateTime.now());
             postedStudent.setUpdateUser(updateUser);
@@ -133,6 +154,12 @@ public class ChallengeReportsService {
 
         var allSdcStudents = Stream.concat(septemberSdcStudents.stream(), febSdcStudents.stream()).toList();
 
+        log.debug("Calling out for SDC school collections and funding groups for challengeReportsSession {}", challengeReportsSession);
+        var sdcSchoolCollectionsByCollectionAndSchool = getSdcSchoolCollectionsByCollectionAndSchool(septCollection.getCollectionID(), febCollection.getCollectionID());
+        var fundingGroupsByCollection = new HashMap<String, Map<String, List<IndependentSchoolFundingGroupSnapshot>>>();
+        fundingGroupsByCollection.put(septCollection.getCollectionID(), getFundingGroupsBySchool(septCollection.getCollectionID()));
+        fundingGroupsByCollection.putIfAbsent(febCollection.getCollectionID(), getFundingGroupsBySchool(febCollection.getCollectionID()));
+
         
         allSdcStudents.forEach(sdcSchoolCollectionStudent -> {
             var school = restUtils.getSchoolBySchoolID(sdcSchoolCollectionStudent.getSchoolID()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "school", sdcSchoolCollectionStudent.getSchoolID()));
@@ -160,22 +187,47 @@ public class ChallengeReportsService {
 
         var foundStudents = mapOfStudents.values();
         foundStudents.forEach(student -> {
-            addStudentIfRequired(gradStudentsMap, fullStudentList, student.getSchoolID(), student.getAssignedStudentId(), student.getAssignedPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames(), student.getSchoolFundingCode());
+            var collectionID = septStudentIDs.contains(student.getAssignedStudentId()) ? septCollection.getCollectionID() : febCollection.getCollectionID();
+            var reportDate = Optional.ofNullable(sdcSchoolCollectionsByCollectionAndSchool.get(new CollectionSchoolKey(collectionID, student.getSchoolID())))
+                    .map(SdcSchoolCollection::getUploadReportDate)
+                    .orElse(null);
+            var schoolFundingGroups = fundingGroupsByCollection.getOrDefault(collectionID, Map.of()).getOrDefault(student.getSchoolID(), List.of());
+            addStudentIfRequired(gradStudentsMap, fullStudentList, student.getSchoolID(), student.getAssignedStudentId(), student.getAssignedPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames(), student.getSchoolFundingCode(), reportDate, schoolFundingGroups);
         });
 
         var missingStudents = restUtils.getStudents(UUID.randomUUID(), new HashSet<>(missingStudentsInBothCollections));
         missingStudents.forEach(student -> {
             var gradStudent = gradStudentsMap.get(student.getStudentID());
-            addStudentIfRequired(gradStudentsMap, fullStudentList, gradStudent.get(0).getGradStudent().getSchoolOfRecordId().toString(), student.getStudentID(), student.getPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames(), null);
+            var schoolID = gradStudent.get(0).getGradStudent().getSchoolOfRecordId().toString();
+            var schoolFundingGroups = fundingGroupsByCollection.get(septCollection.getCollectionID()).getOrDefault(schoolID, List.of());
+            addStudentIfRequired(gradStudentsMap, fullStudentList, schoolID, student.getStudentID(), student.getPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames(), null, null, schoolFundingGroups);
         });
 
         log.debug("Processing student data completed");
         return fullStudentList;
     }
 
-    private void addStudentIfRequired(Map<String, List<StudentCoursePagination>> gradStudentsMap, List<ChallengeReportsStudentRecord> fullStudentList, String schoolID, String studentID, String pen, String firstName, String lastName, String middleNames, String studentFundingCode){
+    private Map<CollectionSchoolKey, SdcSchoolCollection> getSdcSchoolCollectionsByCollectionAndSchool(String septCollectionID, String febCollectionID) throws JsonProcessingException {
+        var septSchoolCollections = restUtils.getSdcSchoolCollectionsForCollection(septCollectionID);
+        var febSchoolCollections = restUtils.getSdcSchoolCollectionsForCollection(febCollectionID);
+
+        return Stream.concat(septSchoolCollections.stream(), febSchoolCollections.stream())
+                .collect(Collectors.toMap(CollectionSchoolKey::of, Function.identity(), ChallengeReportsService::preferWithReportDate));
+    }
+
+    // Independent schools have no district collection, so SDC's unique key allows more than one per collection and school
+    private static SdcSchoolCollection preferWithReportDate(SdcSchoolCollection first, SdcSchoolCollection second) {
+        return StringUtils.isNotBlank(first.getUploadReportDate()) ? first : second;
+    }
+
+    private Map<String, List<IndependentSchoolFundingGroupSnapshot>> getFundingGroupsBySchool(String collectionID) {
+        return restUtils.getSchoolFundingGroupsForCollection(collectionID).stream().collect(Collectors.groupingBy(IndependentSchoolFundingGroupSnapshot::getSchoolID));
+    }
+
+    private void addStudentIfRequired(Map<String, List<StudentCoursePagination>> gradStudentsMap, List<ChallengeReportsStudentRecord> fullStudentList, String schoolID, String studentID, String pen, String firstName, String lastName, String middleNames, String studentFundingCode, String reportDate, List<IndependentSchoolFundingGroupSnapshot> schoolFundingGroups){
         var currentSchool = restUtils.getSchoolBySchoolID(schoolID).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "school", schoolID));
-        if(isPublicSchoolWithNoFundingCode14(currentSchool, studentFundingCode) || isIndySchoolWithNoFundingCode14or20(currentSchool, studentFundingCode)){
+        var isIndySchool = isIndySchoolWithNoFundingCode14or20(currentSchool, studentFundingCode);
+        if(isPublicSchoolWithNoFundingCode14(currentSchool, studentFundingCode) || isIndySchool){
             var gradStudentCourseList = gradStudentsMap.get(studentID);
             gradStudentCourseList.forEach(studentCourse -> {
                 var studentRecord = new ChallengeReportsStudentRecord();
@@ -191,6 +243,11 @@ public class ChallengeReportsService {
                 studentRecord.setStudentSurname(lastName);
                 studentRecord.setStudentGivenName(firstName);
                 studentRecord.setStudentMiddleNames(middleNames);
+                studentRecord.setFundingCode(studentFundingCode);
+                studentRecord.setReportDate(reportDate);
+                if(isIndySchool) {
+                    studentRecord.setFundingGroup(getFundingGroupForCourse(schoolFundingGroups, coregCourse.getExternalCode()));
+                }
                 fullStudentList.add(studentRecord);
             });
         }
@@ -252,21 +309,11 @@ public class ChallengeReportsService {
                 }
             });
         } else {
-            var postedStudents = challengeReportsPostedStudentRepository.findAllByChallengeReportsSessionEntity_ChallengeReportsSessionID(currentReportingPeriod.getChallengeReportsSessionID());
+            var postedStudents = getPostedStudents(currentReportingPeriod, ChallengeReportsStage.FINAL);
             postedStudents.forEach(student -> {
-                var studentRecord = new ChallengeReportsStudentRecord();
                 var currentSchool = restUtils.getSchoolBySchoolID(student.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", student.getSchoolID().toString()));
                 if(student.getDistrictID().toString().equalsIgnoreCase(districtID) && currentSchool.getSchoolCategoryCode().equalsIgnoreCase("PUBLIC")) {
-                    studentRecord.setSchoolID(student.getSchoolID());
-                    studentRecord.setDistrictID(student.getDistrictID());
-                    studentRecord.setStudentID(student.getStudentID());
-                    studentRecord.setPen(student.getPen());
-                    studentRecord.setCourseSession(student.getCourseSession());
-                    studentRecord.setCourseCodeAndLevel(student.getCourseCodeAndLevel());
-                    studentRecord.setStudentSurname(student.getStudentSurname());
-                    studentRecord.setStudentGivenName(student.getStudentGivenName());
-                    studentRecord.setStudentMiddleNames(student.getStudentMiddleNames());
-                    finalStudentDistrictList.add(studentRecord);
+                    finalStudentDistrictList.add(student);
                 }
             });
         }
@@ -294,6 +341,70 @@ public class ChallengeReportsService {
         response.setSchoolsWithCounts(finalCounts);
         log.debug("getChallengeReportCountsForDistrict complete");
         return response;
+    }
+
+    private void lockSession(UUID challengeReportsSessionID) {
+        challengeReportsSessionRepository.lockById(challengeReportsSessionID)
+                .orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "challengeReportsSession", challengeReportsSessionID.toString()));
+    }
+
+    public boolean hasPostedStudents(ChallengeReportsSessionEntity challengeReportsSession, ChallengeReportsStage stage) {
+        return challengeReportsPostedStudentRepository.existsByChallengeReportsSessionEntity_ChallengeReportsSessionIDAndStageCode(challengeReportsSession.getChallengeReportsSessionID(), stage.toString());
+    }
+
+    public List<ChallengeReportsStudentRecord> getPostedStudents(ChallengeReportsSessionEntity challengeReportsSession, ChallengeReportsStage stage) {
+        return challengeReportsPostedStudentRepository.findAllByChallengeReportsSessionEntity_ChallengeReportsSessionIDAndStageCode(challengeReportsSession.getChallengeReportsSessionID(), stage.toString())
+                .stream()
+                .map(this::toStudentRecord)
+                .toList();
+    }
+
+    private ChallengeReportsStudentRecord toStudentRecord(ChallengeReportsPostedStudentEntity student) {
+        var studentRecord = new ChallengeReportsStudentRecord();
+        studentRecord.setSchoolID(student.getSchoolID());
+        studentRecord.setDistrictID(student.getDistrictID());
+        studentRecord.setStudentID(student.getStudentID());
+        studentRecord.setPen(student.getPen());
+        studentRecord.setCourseSession(student.getCourseSession());
+        studentRecord.setCourseCodeAndLevel(student.getCourseCodeAndLevel());
+        studentRecord.setStudentSurname(student.getStudentSurname());
+        studentRecord.setStudentGivenName(student.getStudentGivenName());
+        studentRecord.setStudentMiddleNames(student.getStudentMiddleNames());
+        studentRecord.setFundingCode(student.getFundingCode());
+        studentRecord.setFundingGroup(student.getFundingGroup());
+        studentRecord.setReportDate(student.getReportDate());
+        return studentRecord;
+    }
+
+    public String getFundingGroupForCourse(List<IndependentSchoolFundingGroupSnapshot> schoolFundingGroups, String courseCodeAndLevel) {
+        var gradeCode = StringUtils.isBlank(courseCodeAndLevel) ? null : courseCodeAndLevel.replaceAll("[^0-9]", "");
+        if(StringUtils.isNotBlank(gradeCode)) {
+            return schoolFundingGroups
+                    .stream()
+                    .filter(group -> {
+                        var schoolGrade = SchoolGradeCodes.findByTypeCode(group.getSchoolGradeCode());
+                        return schoolGrade.filter(schoolGradeCodes -> gradeCode.equals(schoolGradeCodes.getCode())).isPresent();
+                    })
+                    .map(IndependentSchoolFundingGroupSnapshot::getSchoolFundingGroupCode)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        var grade10and11and12FundingGroups = schoolFundingGroups
+                .stream()
+                .filter(group -> group.getSchoolGradeCode().equals("GRADE10") || group.getSchoolGradeCode().equals("GRADE11") || group.getSchoolGradeCode().equals("GRADE12"))
+                .map(IndependentSchoolFundingGroupSnapshot::getSchoolFundingGroupCode)
+                .toList();
+
+        if(grade10and11and12FundingGroups.contains("GROUP1")) {
+            return "GROUP1";
+        }
+
+        if(grade10and11and12FundingGroups.contains("GROUP2")) {
+            return "GROUP2";
+        }
+
+        return "";
     }
 
     private List<String> getCourseSessionValues(String year){
