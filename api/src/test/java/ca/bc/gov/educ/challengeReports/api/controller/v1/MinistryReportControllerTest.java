@@ -81,45 +81,34 @@ class MinistryReportControllerTest extends BaseChallengeReportsAPITest {
   }
 
   @Test
-  void testPrelimIndependentReport_whilePrelim_isGeneratedLive() throws Exception {
+  void testPrelimIndependentReport_whilePrelim_usesReportDateAndGroupFromEachStudentsCollection() throws Exception {
     createSession("PRELIM");
 
     var school = createMockSchool("INDEPEND");
-    var studentID = UUID.randomUUID();
+    var septStudentID = UUID.randomUUID();
+    var febStudentID = UUID.randomUUID();
     var septCollectionID = UUID.randomUUID().toString();
-    var sdcSchoolCollectionID = UUID.randomUUID().toString();
+    var febCollectionID = UUID.randomUUID().toString();
 
-    when(restUtils.getChallengeReportGradStudentCoursesForYear(anyList())).thenReturn(List.of(createStudentCourse(studentID, school.getSchoolId())));
+    when(restUtils.getChallengeReportGradStudentCoursesForYear(anyList())).thenReturn(List.of(
+            createStudentCourse(septStudentID, school.getSchoolId()),
+            createStudentCourse(febStudentID, school.getSchoolId())));
 
     var septCollection = new Collection();
     septCollection.setCollectionID(septCollectionID);
     var febCollection = new Collection();
-    febCollection.setCollectionID(UUID.randomUUID().toString());
+    febCollection.setCollectionID(febCollectionID);
     when(restUtils.getLastSeptemberCollection(anyString())).thenReturn(new PaginatedResponse<>(List.of(septCollection)));
     when(restUtils.getLastFebruaryCollection(anyString())).thenReturn(new PaginatedResponse<>(List.of(febCollection)));
 
-    var sdcStudent = new SdcSchoolCollectionStudent();
-    sdcStudent.setSdcSchoolCollectionID(sdcSchoolCollectionID);
-    sdcStudent.setSchoolID(school.getSchoolId());
-    sdcStudent.setAssignedStudentId(studentID.toString());
-    sdcStudent.setAssignedPen("123456789");
-    sdcStudent.setLegalLastName("SMITH");
-    sdcStudent.setSchoolFundingCode("16");
-    sdcStudent.setFte(BigDecimal.ONE);
-    when(restUtils.get1701DataForStudents(eq(septCollectionID), anyList())).thenReturn(List.of(sdcStudent));
+    when(restUtils.get1701DataForStudents(eq(septCollectionID), anyList())).thenReturn(List.of(createShallowSdcStudent(septStudentID, school, "111111111", "16")));
+    when(restUtils.get1701DataForStudents(eq(febCollectionID), anyList())).thenReturn(List.of(createShallowSdcStudent(febStudentID, school, "222222222", null)));
 
-    var sdcSchoolCollection = new SdcSchoolCollection();
-    sdcSchoolCollection.setSdcSchoolCollectionID(sdcSchoolCollectionID);
-    sdcSchoolCollection.setCollectionID(septCollectionID);
-    sdcSchoolCollection.setSchoolID(school.getSchoolId());
-    sdcSchoolCollection.setUploadReportDate("20240929");
-    when(restUtils.getSdcSchoolCollectionsForCollection(septCollectionID)).thenReturn(List.of(sdcSchoolCollection));
+    when(restUtils.getSdcSchoolCollectionsForCollection(septCollectionID)).thenReturn(List.of(createSdcSchoolCollection(septCollectionID, school, "20240929")));
+    when(restUtils.getSdcSchoolCollectionsForCollection(febCollectionID)).thenReturn(List.of(createSdcSchoolCollection(febCollectionID, school, "20250214")));
 
-    var fundingGroup = new IndependentSchoolFundingGroupSnapshot();
-    fundingGroup.setSchoolID(school.getSchoolId());
-    fundingGroup.setSchoolGradeCode("GRADE12");
-    fundingGroup.setSchoolFundingGroupCode("GROUP1");
-    when(restUtils.getSchoolFundingGroupsForCollection(septCollectionID)).thenReturn(List.of(fundingGroup));
+    when(restUtils.getSchoolFundingGroupsForCollection(septCollectionID)).thenReturn(List.of(createFundingGroup(school, "GROUP1")));
+    when(restUtils.getSchoolFundingGroupsForCollection(febCollectionID)).thenReturn(List.of(createFundingGroup(school, "GROUP2")));
 
     when(restUtils.getSchoolBySchoolID(anyString())).thenReturn(Optional.of(school));
     var course = new CourseCode();
@@ -127,9 +116,44 @@ class MinistryReportControllerTest extends BaseChallengeReportsAPITest {
     course.setExternalCode("MATH 12");
     when(restUtils.getCoregCourseByID(anyString())).thenReturn(Optional.of(course));
 
-    var csv = downloadCsv("PRELIM_PROVINCIAL_INDEPENDENT_REPORT");
+    assertThat(downloadCsv("PRELIM_PROVINCIAL_INDEPENDENT_REPORT")).containsExactly(
+            HEADER,
+            "03636018,Marco's school,GROUP1,111111111,20240929,16,MATH,12,202407",
+            "03636018,Marco's school,GROUP2,222222222,20250214,,MATH,12,202407");
+  }
 
-    assertThat(csv).containsExactly(HEADER, "03636018,Marco's school,GROUP1,123456789,20240929,16,MATH,12,202407");
+  @Test
+  void testPrelimDistrictReport_whenSchoolHasDuplicateSchoolCollections_usesTheOneWithAReportDate() throws Exception {
+    createSession("PRELIM");
+
+    var school = createMockSchool("PUBLIC");
+    var studentID = UUID.randomUUID();
+    var septCollectionID = UUID.randomUUID().toString();
+    var febCollectionID = UUID.randomUUID().toString();
+
+    when(restUtils.getChallengeReportGradStudentCoursesForYear(anyList())).thenReturn(List.of(createStudentCourse(studentID, school.getSchoolId())));
+
+    var septCollection = new Collection();
+    septCollection.setCollectionID(septCollectionID);
+    var febCollection = new Collection();
+    febCollection.setCollectionID(febCollectionID);
+    when(restUtils.getLastSeptemberCollection(anyString())).thenReturn(new PaginatedResponse<>(List.of(septCollection)));
+    when(restUtils.getLastFebruaryCollection(anyString())).thenReturn(new PaginatedResponse<>(List.of(febCollection)));
+
+    when(restUtils.get1701DataForStudents(eq(septCollectionID), anyList())).thenReturn(List.of(createShallowSdcStudent(studentID, school, "111111111", null)));
+    when(restUtils.getSdcSchoolCollectionsForCollection(septCollectionID)).thenReturn(List.of(
+            createSdcSchoolCollection(septCollectionID, school, null),
+            createSdcSchoolCollection(septCollectionID, school, "20240929")));
+
+    when(restUtils.getSchoolBySchoolID(anyString())).thenReturn(Optional.of(school));
+    var course = new CourseCode();
+    course.setCourseID("MATH12");
+    course.setExternalCode("MATH 12");
+    when(restUtils.getCoregCourseByID(anyString())).thenReturn(Optional.of(course));
+
+    assertThat(downloadCsv("PRELIM_PROVINCIAL_DISTRICT_REPORT")).containsExactly(
+            HEADER,
+            "03636018,Marco's school,,111111111,20240929,,MATH,12,202407");
   }
 
   @Test
@@ -322,6 +346,34 @@ class MinistryReportControllerTest extends BaseChallengeReportsAPITest {
     var response = objectMapper.readValue(result.getResponse().getContentAsByteArray(), DownloadableReportResponse.class);
     assertThat(response.getReportType()).isEqualTo(reportType);
     return new String(Base64.getDecoder().decode(response.getDocumentData()), StandardCharsets.UTF_8).lines().toList();
+  }
+
+  private SdcSchoolCollectionStudent createShallowSdcStudent(UUID studentID, SchoolTombstone school, String pen, String fundingCode) {
+    var sdcStudent = new SdcSchoolCollectionStudent();
+    sdcStudent.setSchoolID(school.getSchoolId());
+    sdcStudent.setAssignedStudentId(studentID.toString());
+    sdcStudent.setAssignedPen(pen);
+    sdcStudent.setLegalLastName("SMITH");
+    sdcStudent.setSchoolFundingCode(fundingCode);
+    sdcStudent.setFte(BigDecimal.ONE);
+    return sdcStudent;
+  }
+
+  private SdcSchoolCollection createSdcSchoolCollection(String collectionID, SchoolTombstone school, String uploadReportDate) {
+    var sdcSchoolCollection = new SdcSchoolCollection();
+    sdcSchoolCollection.setSdcSchoolCollectionID(UUID.randomUUID().toString());
+    sdcSchoolCollection.setCollectionID(collectionID);
+    sdcSchoolCollection.setSchoolID(school.getSchoolId());
+    sdcSchoolCollection.setUploadReportDate(uploadReportDate);
+    return sdcSchoolCollection;
+  }
+
+  private IndependentSchoolFundingGroupSnapshot createFundingGroup(SchoolTombstone school, String fundingGroupCode) {
+    var fundingGroup = new IndependentSchoolFundingGroupSnapshot();
+    fundingGroup.setSchoolID(school.getSchoolId());
+    fundingGroup.setSchoolGradeCode("GRADE12");
+    fundingGroup.setSchoolFundingGroupCode(fundingGroupCode);
+    return fundingGroup;
   }
 
   private ChallengeReportsSessionEntity createSession(String status) {

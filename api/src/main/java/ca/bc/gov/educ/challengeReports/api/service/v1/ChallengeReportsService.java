@@ -44,6 +44,12 @@ import static ca.bc.gov.educ.challengeReports.api.constants.v1.ChallengeReportsS
 @Service
 @Slf4j
 public class ChallengeReportsService {
+    private record CollectionSchoolKey(String collectionID, String schoolID) {
+        static CollectionSchoolKey of(SdcSchoolCollection sdcSchoolCollection) {
+            return new CollectionSchoolKey(sdcSchoolCollection.getCollectionID(), sdcSchoolCollection.getSchoolID());
+        }
+    }
+
     private final ChallengeReportsSessionRepository challengeReportsSessionRepository;
     private final ChallengeReportsPostedStudentRepository challengeReportsPostedStudentRepository;
     private final RestUtils restUtils;
@@ -149,10 +155,7 @@ public class ChallengeReportsService {
         var allSdcStudents = Stream.concat(septemberSdcStudents.stream(), febSdcStudents.stream()).toList();
 
         log.debug("Calling out for SDC school collections and funding groups for challengeReportsSession {}", challengeReportsSession);
-        var sdcSchoolCollectionMap = Stream.concat(
-                restUtils.getSdcSchoolCollectionsForCollection(septCollection.getCollectionID()).stream(),
-                restUtils.getSdcSchoolCollectionsForCollection(febCollection.getCollectionID()).stream()
-        ).collect(Collectors.toMap(SdcSchoolCollection::getSdcSchoolCollectionID, Function.identity(), (a, b) -> a));
+        var sdcSchoolCollectionsByCollectionAndSchool = getSdcSchoolCollectionsByCollectionAndSchool(septCollection.getCollectionID(), febCollection.getCollectionID());
         var fundingGroupsByCollection = new HashMap<String, Map<String, List<IndependentSchoolFundingGroupSnapshot>>>();
         fundingGroupsByCollection.put(septCollection.getCollectionID(), getFundingGroupsBySchool(septCollection.getCollectionID()));
         fundingGroupsByCollection.putIfAbsent(febCollection.getCollectionID(), getFundingGroupsBySchool(febCollection.getCollectionID()));
@@ -184,9 +187,10 @@ public class ChallengeReportsService {
 
         var foundStudents = mapOfStudents.values();
         foundStudents.forEach(student -> {
-            var sdcSchoolCollection = sdcSchoolCollectionMap.get(student.getSdcSchoolCollectionID());
-            var reportDate = sdcSchoolCollection != null ? sdcSchoolCollection.getUploadReportDate() : null;
-            var collectionID = sdcSchoolCollection != null ? sdcSchoolCollection.getCollectionID() : septCollection.getCollectionID();
+            var collectionID = septStudentIDs.contains(student.getAssignedStudentId()) ? septCollection.getCollectionID() : febCollection.getCollectionID();
+            var reportDate = Optional.ofNullable(sdcSchoolCollectionsByCollectionAndSchool.get(new CollectionSchoolKey(collectionID, student.getSchoolID())))
+                    .map(SdcSchoolCollection::getUploadReportDate)
+                    .orElse(null);
             var schoolFundingGroups = fundingGroupsByCollection.getOrDefault(collectionID, Map.of()).getOrDefault(student.getSchoolID(), List.of());
             addStudentIfRequired(gradStudentsMap, fullStudentList, student.getSchoolID(), student.getAssignedStudentId(), student.getAssignedPen(), student.getLegalFirstName(), student.getLegalLastName(), student.getLegalMiddleNames(), student.getSchoolFundingCode(), reportDate, schoolFundingGroups);
         });
@@ -201,6 +205,19 @@ public class ChallengeReportsService {
 
         log.debug("Processing student data completed");
         return fullStudentList;
+    }
+
+    private Map<CollectionSchoolKey, SdcSchoolCollection> getSdcSchoolCollectionsByCollectionAndSchool(String septCollectionID, String febCollectionID) throws JsonProcessingException {
+        var septSchoolCollections = restUtils.getSdcSchoolCollectionsForCollection(septCollectionID);
+        var febSchoolCollections = restUtils.getSdcSchoolCollectionsForCollection(febCollectionID);
+
+        return Stream.concat(septSchoolCollections.stream(), febSchoolCollections.stream())
+                .collect(Collectors.toMap(CollectionSchoolKey::of, Function.identity(), ChallengeReportsService::preferWithReportDate));
+    }
+
+    // Independent schools have no district collection, so SDC's unique key allows more than one per collection and school
+    private static SdcSchoolCollection preferWithReportDate(SdcSchoolCollection first, SdcSchoolCollection second) {
+        return StringUtils.isNotBlank(first.getUploadReportDate()) ? first : second;
     }
 
     private Map<String, List<IndependentSchoolFundingGroupSnapshot>> getFundingGroupsBySchool(String collectionID) {
