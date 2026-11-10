@@ -132,7 +132,7 @@ public class CSVReportService {
         ));
     }
 
-    private List<String> prepareStudentDataForIndependentFundingReport(SchoolTombstone school, ChallengeReportsPostedStudentEntity student, List<IndependentSchoolFundingGroupSnapshot> schoolGroups) {
+    private List<String> prepareStudentDataForIndependentFundingReport(SchoolTombstone school, ChallengeReportsStudentRecord student, List<IndependentSchoolFundingGroupSnapshot> schoolGroups) {
         String fundingGroup = null;
 
         log.debug("Course code and level is: {}", student.getCourseCodeAndLevel());
@@ -242,7 +242,7 @@ public class CSVReportService {
 
     public DownloadableReportResponse generateIndependentSchoolsFundingReport() throws JsonProcessingException {
         var currentReportingPeriod = challengeReportsSessionRepository.findActiveReportingPeriodSession().orElseThrow(() -> new EntityNotFoundException(ChallengeReportsSessionEntity.class, "reportingPeriodSession", null));
-        var allStudents = challengeReportsPostedStudentRepository.findAllByChallengeReportsSessionEntity_ChallengeReportsSessionID(currentReportingPeriod.getChallengeReportsSessionID());
+        var allStudents = getLivePreliminaryOrPostedStudents(currentReportingPeriod);
         var lastYear = Year.of(Integer.parseInt(currentReportingPeriod.getChallengeReportsPeriod().getSchoolYear())).minusYears(1);
         var collection = restUtils.getLastSeptemberCollection(lastYear.toString());
         String[] headers = MinistryIndependentSchoolsReportHeader.getAllValuesAsStringArray();
@@ -255,7 +255,7 @@ public class CSVReportService {
             CSVPrinter csvPrinter = new CSVPrinter(writer, csvFormat);
 
 
-            var finalStudents = new ArrayList<ChallengeReportsPostedStudentEntity>();
+            var finalStudents = new ArrayList<ChallengeReportsStudentRecord>();
             allStudents.forEach(challengeReportsStudentRecord -> {
                 var school = restUtils.getSchoolBySchoolID(challengeReportsStudentRecord.getSchoolID().toString()).orElseThrow(() -> new EntityNotFoundException(SchoolTombstone.class, "schoolID", challengeReportsStudentRecord.getSchoolID().toString()));
                 if(school.getSchoolCategoryCode().equalsIgnoreCase("INDEPEND") || school.getSchoolCategoryCode().equalsIgnoreCase("INDP_FNS")) {
@@ -278,13 +278,38 @@ public class CSVReportService {
 
             var downloadableReport = new DownloadableReportResponse();
 
-            downloadableReport.setReportType(MinistryReportTypeCode.DISTRICT_FUNDING_REPORT.getCode());
+            downloadableReport.setReportType(MinistryReportTypeCode.INDEPENDENT_SCHOOL_FUNDING_REPORT.getCode());
             downloadableReport.setDocumentData(Base64.getEncoder().encodeToString(byteArrayOutputStream.toByteArray()));
 
             return downloadableReport;
         } catch (IOException e) {
             throw new ChallengeReportsAPIRuntimeException(e);
         }
+    }
+
+    // Students are only posted when the final stage runs, so during PRELIM the list is generated live
+    private List<ChallengeReportsStudentRecord> getLivePreliminaryOrPostedStudents(ChallengeReportsSessionEntity currentReportingPeriod) throws JsonProcessingException {
+        if (currentReportingPeriod.getChallengeReportsStatusCode().equalsIgnoreCase(ChallengeReportsStatus.PRELIM.toString())) {
+            return challengeReportsService.getAndGeneratePreliminaryChallengeStudentList(currentReportingPeriod);
+        }
+        return challengeReportsPostedStudentRepository.findAllByChallengeReportsSessionEntity_ChallengeReportsSessionID(currentReportingPeriod.getChallengeReportsSessionID())
+                .stream()
+                .map(this::toStudentRecord)
+                .toList();
+    }
+
+    private ChallengeReportsStudentRecord toStudentRecord(ChallengeReportsPostedStudentEntity postedStudent) {
+        var studentRecord = new ChallengeReportsStudentRecord();
+        studentRecord.setSchoolID(postedStudent.getSchoolID());
+        studentRecord.setDistrictID(postedStudent.getDistrictID());
+        studentRecord.setStudentID(postedStudent.getStudentID());
+        studentRecord.setPen(postedStudent.getPen());
+        studentRecord.setCourseSession(postedStudent.getCourseSession());
+        studentRecord.setCourseCodeAndLevel(postedStudent.getCourseCodeAndLevel());
+        studentRecord.setStudentSurname(postedStudent.getStudentSurname());
+        studentRecord.setStudentGivenName(postedStudent.getStudentGivenName());
+        studentRecord.setStudentMiddleNames(postedStudent.getStudentMiddleNames());
+        return studentRecord;
     }
 
 }

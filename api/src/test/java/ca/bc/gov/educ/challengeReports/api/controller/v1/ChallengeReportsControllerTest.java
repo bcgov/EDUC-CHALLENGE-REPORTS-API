@@ -1,10 +1,13 @@
 package ca.bc.gov.educ.challengeReports.api.controller.v1;
 
 import ca.bc.gov.educ.challengeReports.api.BaseChallengeReportsAPITest;
+import ca.bc.gov.educ.challengeReports.api.constants.v1.MinistryReportTypeCode;
 import ca.bc.gov.educ.challengeReports.api.constants.v1.URL;
 import ca.bc.gov.educ.challengeReports.api.mappers.v1.ChallengeReportSessionMapper;
+import ca.bc.gov.educ.challengeReports.api.model.v1.ChallengeReportsPostedStudentEntity;
 import ca.bc.gov.educ.challengeReports.api.model.v1.ChallengeReportsReportingPeriodEntity;
 import ca.bc.gov.educ.challengeReports.api.model.v1.ChallengeReportsSessionEntity;
+import ca.bc.gov.educ.challengeReports.api.repository.v1.ChallengeReportsPostedStudentRepository;
 import ca.bc.gov.educ.challengeReports.api.repository.v1.ChallengeReportsReportingPeriodRepository;
 import ca.bc.gov.educ.challengeReports.api.repository.v1.ChallengeReportsSagaEventRepository;
 import ca.bc.gov.educ.challengeReports.api.repository.v1.ChallengeReportsSagaRepository;
@@ -19,6 +22,7 @@ import ca.bc.gov.educ.challengeReports.api.struct.v1.external.gradstudent.v1.Gra
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.gradstudent.v1.StudentCoursePagination;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.institute.v1.SchoolTombstone;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.Collection;
+import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.IndependentSchoolFundingGroupSnapshot;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.sdc.v1.SdcSchoolCollectionStudent;
 import ca.bc.gov.educ.challengeReports.api.struct.v1.external.studentapi.v1.Student;
 import ca.bc.gov.educ.challengeReports.api.util.JsonUtil;
@@ -69,6 +73,8 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
   ChallengeReportsSagaRepository challengeReportsSagaRepository;
   @Autowired
   ChallengeReportsSagaEventRepository challengeReportsSagaEventRepository;
+  @Autowired
+  ChallengeReportsPostedStudentRepository challengeReportsPostedStudentRepository;
   @Autowired
   RestUtils restUtils;
 
@@ -307,6 +313,72 @@ class ChallengeReportsControllerTest extends BaseChallengeReportsAPITest {
     var csv = new String(Base64.getDecoder().decode(report.getDocumentData()), StandardCharsets.UTF_8);
 
     assertThat(csv).contains(publicSchool.getMincode()).contains("MATH12").contains("123456789");
+  }
+
+  @Test
+  void testGetIndependentSchoolFundingReport_Prelim_ReturnsLiveIndependentStudents() throws Exception {
+    createPrelimSession();
+    var independentSchool = createMockSchool();
+    independentSchool.setSchoolCategoryCode("INDEPEND");
+    mockSchools(independentSchool);
+    var studentID = mockGradChallengeStudent(independentSchool);
+    mockSeptemberEnrolments(createEnrolment(studentID, independentSchool, "1.0000", null));
+    mockGrade12FundingGroup(independentSchool, "GROUP1");
+
+    var report = getIndependentSchoolFundingReport();
+
+    assertThat(report.getReportType()).isEqualTo(MinistryReportTypeCode.INDEPENDENT_SCHOOL_FUNDING_REPORT.getCode());
+    assertThat(decodeCsv(report)).contains(independentSchool.getMincode()).contains("GROUP1,123456789,MATH12");
+  }
+
+  @Test
+  void testGetIndependentSchoolFundingReport_Finalized_ReturnsPostedStudents() throws Exception {
+    var reportingPeriod = challengeReportsReportingPeriodRepository.save(createMockReportingPeriod());
+    var finalizedSession = createMockSession(reportingPeriod);
+    finalizedSession.setChallengeReportsStatusCode("FINALIZED");
+    finalizedSession = challengeReportsSessionRepository.save(finalizedSession);
+    var independentFirstNationsSchool = createMockSchool();
+    independentFirstNationsSchool.setSchoolCategoryCode("INDP_FNS");
+    mockSchools(independentFirstNationsSchool);
+    var septemberCollection = new Collection();
+    septemberCollection.setCollectionID(UUID.randomUUID().toString());
+    when(this.restUtils.getLastSeptemberCollection(anyString())).thenReturn(new PaginatedResponse<>(List.of(septemberCollection)));
+    mockGrade12FundingGroup(independentFirstNationsSchool, "GROUP2");
+    challengeReportsPostedStudentRepository.save(ChallengeReportsPostedStudentEntity.builder()
+        .challengeReportsSessionEntity(finalizedSession)
+        .schoolID(UUID.fromString(independentFirstNationsSchool.getSchoolId()))
+        .districtID(UUID.fromString(independentFirstNationsSchool.getDistrictId()))
+        .studentID(UUID.randomUUID())
+        .pen("987654321")
+        .courseSession("202506")
+        .courseCodeAndLevel("ENGL12")
+        .createUser("ABC")
+        .createDate(LocalDateTime.now())
+        .updateUser("ABC")
+        .updateDate(LocalDateTime.now())
+        .build());
+
+    var csv = decodeCsv(getIndependentSchoolFundingReport());
+
+    assertThat(csv).contains(independentFirstNationsSchool.getMincode()).contains("GROUP2,987654321,ENGL12").doesNotContain("123456789");
+  }
+
+  private DownloadableReportResponse getIndependentSchoolFundingReport() throws Exception {
+    final GrantedAuthority grantedAuthority = () -> "SCOPE_READ_CHALLENGE_REPORTS";
+    var resultActions = this.mockMvc.perform(get(URL.BASE_URL + "/report/INDEPENDENT_SCHOOL_FUNDING_REPORT/download").with(oidcLogin().authorities(grantedAuthority)).contentType(APPLICATION_JSON)).andDo(print()).andExpect(status().isOk());
+    return objectMapper.readValue(resultActions.andReturn().getResponse().getContentAsByteArray(), DownloadableReportResponse.class);
+  }
+
+  private String decodeCsv(DownloadableReportResponse report) {
+    return new String(Base64.getDecoder().decode(report.getDocumentData()), StandardCharsets.UTF_8);
+  }
+
+  private void mockGrade12FundingGroup(SchoolTombstone school, String schoolFundingGroupCode) {
+    var fundingGroup = new IndependentSchoolFundingGroupSnapshot();
+    fundingGroup.setSchoolID(school.getSchoolId());
+    fundingGroup.setSchoolGradeCode("GRADE12");
+    fundingGroup.setSchoolFundingGroupCode(schoolFundingGroupCode);
+    when(this.restUtils.getSchoolFundingGroupsForCollection(anyString())).thenReturn(List.of(fundingGroup));
   }
 
   // startSaga runs its first step async; wait for it to commit so it can't race the next test's cleanup in setUp
