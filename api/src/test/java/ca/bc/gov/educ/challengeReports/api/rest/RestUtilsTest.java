@@ -17,6 +17,7 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
@@ -28,7 +29,7 @@ import static org.mockito.Mockito.when;
 
 class RestUtilsTest {
 
-  private final List<URI> requestedUris = new ArrayList<>();
+  private final List<URI> requestedUris = Collections.synchronizedList(new ArrayList<>());
   private ApplicationProperties props;
 
   @BeforeEach
@@ -75,9 +76,29 @@ class RestUtilsTest {
     assertThat(collections).extracting("sdcSchoolCollectionID", "uploadReportDate")
             .containsExactly(tuple("1", "20240929"), tuple("2", "20240930"));
     assertThat(requestedUris).hasSize(2);
-    var query = URLDecoder.decode(requestedUris.get(0).getRawQuery(), StandardCharsets.UTF_8);
-    assertThat(requestedUris.get(0).getPath()).isEqualTo("/sdcSchoolCollection/paginated");
-    assertThat(query).contains("\"key\":\"collectionEntity.collectionID\"").contains("\"value\":\"abc-123\"");
+    assertThat(requestedUris).allSatisfy(uri -> {
+      var query = URLDecoder.decode(uri.getRawQuery(), StandardCharsets.UTF_8);
+      assertThat(uri.getPath()).isEqualTo("/sdcSchoolCollection/paginated");
+      assertThat(query).contains("sort={\"sdcSchoolCollectionID\":\"ASC\"}");
+      assertThat(query).contains("\"key\":\"collectionEntity.collectionID\"").contains("\"value\":\"abc-123\"");
+    });
+  }
+
+  @Test
+  void get1701DataForStudents_fetchesEveryPageSortedBySdcSchoolCollectionStudentID() {
+    var restUtils = restUtilsRespondingWith(uri -> uri.getQuery().contains("pageNumber=0")
+            ? page("[{\"assignedStudentId\":\"s1\"}]", 0, 1, 2)
+            : page("[{\"assignedStudentId\":\"s2\"}]", 1, 1, 2));
+
+    var students = restUtils.get1701DataForStudents("abc-123", List.of("s1", "s2"));
+
+    assertThat(students).extracting("assignedStudentId").containsExactly("s1", "s2");
+    assertThat(requestedUris).hasSize(2);
+    assertThat(requestedUris).allSatisfy(uri -> {
+      var query = URLDecoder.decode(uri.getRawQuery(), StandardCharsets.UTF_8);
+      assertThat(uri.getPath()).isEqualTo("/sdcSchoolCollectionStudent/paginated-shallow");
+      assertThat(query).contains("sort={\"sdcSchoolCollectionStudentID\":\"ASC\"}");
+    });
   }
 
   @Test

@@ -361,6 +361,7 @@ public class RestUtils {
 
     String searchJson = objectMapper.writeValueAsString(SearchCriteriaBuilder.sdcSchoolCollectionsByCollectionID(collectionID));
     String encodedSearchJson = URLEncoder.encode(searchJson, StandardCharsets.UTF_8);
+    String encodedSortJson = URLEncoder.encode(objectMapper.writeValueAsString(Map.of("sdcSchoolCollectionID", "ASC")), StandardCharsets.UTF_8);
 
     List<SdcSchoolCollection> sdcSchoolCollections = new ArrayList<>();
     boolean hasNextPage = true;
@@ -370,6 +371,7 @@ public class RestUtils {
               + "/sdcSchoolCollection/paginated"
               + "?pageNumber=" + pageNumber
               + "&pageSize=" + pageSize
+              + "&sort=" + encodedSortJson
               + "&searchCriteriaList=" + encodedSearchJson;
 
       PaginatedResponse<SdcSchoolCollection> response = webClient.get()
@@ -395,6 +397,7 @@ public class RestUtils {
     List<SdcSchoolCollectionStudent> students = new ArrayList<>();
     String searchJson = objectMapper.writeValueAsString(searchCriteriaList);
     String encodedSearchJson = URLEncoder.encode(searchJson, StandardCharsets.UTF_8);
+    String encodedSortJson = URLEncoder.encode(objectMapper.writeValueAsString(Map.of("sdcSchoolCollectionStudentID", "ASC")), StandardCharsets.UTF_8);
 
     int pageNumber = 0;
     boolean hasNextPage = true;
@@ -405,7 +408,7 @@ public class RestUtils {
                 + "/sdcSchoolCollectionStudent/paginated-shallow"
                 + "?pageNumber=" + pageNumber
                 + "&pageSize=" + pageSize
-                + "&sort=" // optional: add sort json or keep empty
+                + "&sort=" + encodedSortJson
                 + "&searchCriteriaList=" + encodedSearchJson;
 
         PaginatedResponse<SdcSchoolCollectionStudent> response = webClient.get()
